@@ -259,7 +259,7 @@ void ShapeTest (void)
 
         US_Print ("\n Address: ");
         addr = PM_GetPage(i);
-        snprintf (str,sizeof(str),"0x%010X",(intptr_t)addr);
+        snprintf (str,sizeof(str),"0x%010X",(uintptr_t)addr);
         US_Print (str);
 
         if (addr)
