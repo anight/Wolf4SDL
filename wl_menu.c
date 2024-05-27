@@ -723,13 +723,11 @@ CP_CheckQuick (ScanCode scancode)
         case sc_F9:
             if (SaveGamesAvail[LSItems.curpos] && pickquick)
             {
-                char string[100] = STR_LGC;
-
                 fontnumber = 1;
 
                 snprintf (str,sizeof(str),STR_LGC "%s\"?",SaveGameNames[LSItems.curpos]);
 
-                if (Confirm (string))
+                if (Confirm (str))
                     CP_LoadGame (1);
 
                 fontnumber = 0;
