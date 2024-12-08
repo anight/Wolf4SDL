@@ -629,14 +629,17 @@ void SetupGameLevel (void)
 
     if (!loadedgame)
     {
-        gamestate.TimeCount
-            = gamestate.secrettotal
-            = gamestate.killtotal
-            = gamestate.treasuretotal
-            = gamestate.secretcount
-            = gamestate.killcount
-            = gamestate.treasurecount
-            = pwallstate = pwallpos = facetimes = 0;
+        gamestate.TimeCount =
+        gamestate.secrettotal =
+        gamestate.killtotal =
+        gamestate.treasuretotal =
+        gamestate.secretcount =
+        gamestate.killcount =
+        gamestate.treasurecount =
+        gamestate.attackframe =
+        gamestate.attackcount =
+        gamestate.weaponframe =
+        pwallstate = pwallpos = facetimes = 0;
         LastAttacker = NULL;
     }
 
@@ -769,6 +772,15 @@ void SetupGameLevel (void)
             map++;
         }
     }
+
+#if defined(USE_FEATUREFLAGS) && defined(USE_CLOUDSKY)
+    if (GetFeatureFlags() & FF_CLOUDSKY)
+        InitSky ();
+#endif
+
+#ifdef USE_SHADING
+    InitLevelShadeTable ();
+#endif
 
 //
 // load floor/ceiling textures
