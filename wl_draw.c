@@ -763,8 +763,8 @@ void DrawScaleds (void)
 
             if (visptr < &vislist[MAXVISABLE-1])    // don't let it overflow
             {
-                visptr->tilex = obj->tilex;
-                visptr->tiley = obj->tiley;
+                visptr->tilex = obj->x >> TILESHIFT;
+                visptr->tiley = obj->y >> TILESHIFT;
                 visptr->flags = obj->flags;
                 visptr++;
             }
@@ -802,7 +802,7 @@ void DrawScaleds (void)
             Transform3DShape (farthest);
         else
 #endif
-            ScaleShape (farthest->viewx,farthest->shapenum,farthest->viewheight,farthest->flags);
+            ScaleShape (farthest);
 
         farthest->viewheight = 32000;
     }

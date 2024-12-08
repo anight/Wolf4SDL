@@ -34,15 +34,15 @@
 
 void ScaleLine (int16_t x, int16_t toppix, fixed fracstep, byte *linesrc, byte *linecmds, byte *curshades)
 {
-    byte    *src,*dest;
-    byte    col;
-    int16_t start,end,top;
-    int16_t startpix,endpix;
-    fixed   frac;
+    byte  *src,*dest;
+    int   color;
+    int   start,end,top;
+    int   startpix,endpix;
+    fixed frac;
 
     for (end = ReadShort(linecmds) >> 1; end; end = ReadShort(linecmds) >> 1)
     {
-        top = ReadShort(linecmds + 2);
+        top = (int16_t)ReadShort(linecmds + 2);
         start = ReadShort(linecmds + 4) >> 1;
 
         frac = start * fracstep;
@@ -70,16 +70,16 @@ void ScaleLine (int16_t x, int16_t toppix, fixed fracstep, byte *linesrc, byte *
 
 #ifdef USE_SHADING
             if (curshades)
-                col = curshades[*src];
+                color = curshades[*src];
             else
 #endif
-                col = *src;
+                color = *src;
 
             dest = vbuf + ylookup[startpix] + x;
 
             while (startpix < endpix)
             {
-                *dest = col;
+                *dest = color;
                 dest += bufferPitch;
                 startpix++;
             }
@@ -95,43 +95,43 @@ void ScaleLine (int16_t x, int16_t toppix, fixed fracstep, byte *linesrc, byte *
 =
 = ScaleShape
 =
-= Draws a compiled shape at [scale] pixels high
+= Draws a compiled shape at [height] pixels high
 =
 ===================
 */
 
-void ScaleShape (int xcenter, int shapenum, int height, uint32_t flags)
+void ScaleShape (visobj_t *sprite)
 {
     int         i;
     compshape_t *shape;
     byte        *linesrc,*linecmds;
     byte        *curshades = NULL;
-    int16_t     scale,toppix;
-    int16_t     x1,x2,actx;
+    int         height,toppix;
+    int         x1,x2,xcenter;
     fixed       frac,fracstep;
 
-    scale = height >> 3;        // low three bits are fractional
+    height = sprite->viewheight >> 3;        // low three bits are fractional
 
-    if (!scale)
+    if (!height)
         return;                 // too close or far away
 
-    linesrc = PM_GetSpritePage(shapenum);
+    linesrc = PM_GetSpritePage(sprite->shapenum);
     shape = (compshape_t *)linesrc;
 
 #ifdef USE_SHADING
-    if (flags & FL_FULLBRIGHT)
+    if (sprite->flags & FL_FULLBRIGHT)
         curshades = shadetable[0];
     else
-        curshades = shadetable[GetShade(height)];
+        curshades = shadetable[GetShade(sprite->viewheight)];
 #endif
 
-    fracstep = FixedDiv(scale,TEXTURESIZE/2);
+    fracstep = FixedDiv(height,TEXTURESIZE/2);
     frac = shape->leftpix * fracstep;
 
-    actx = xcenter - scale;
-    toppix = centery - scale;
+    xcenter = sprite->viewx - height;
+    toppix = centery - height;
 
-    x2 = (frac >> FRACBITS) + actx;
+    x2 = (frac >> FRACBITS) + xcenter;
 
     for (i = shape->leftpix; i <= shape->rightpix; i++)
     {
@@ -144,7 +144,7 @@ void ScaleShape (int xcenter, int shapenum, int height, uint32_t flags)
             break;                // off the right side of the view area
 
         frac += fracstep;
-        x2 = (frac >> FRACBITS) + actx;
+        x2 = (frac >> FRACBITS) + xcenter;
 
         if (x2 < 0)
             continue;             // not into the view area
@@ -157,7 +157,7 @@ void ScaleShape (int xcenter, int shapenum, int height, uint32_t flags)
 
         while (x1 < x2)
         {
-            if (wallheight[x1] < height)
+            if (wallheight[x1] < sprite->viewheight)
             {
                 linecmds = &linesrc[shape->dataofs[i - shape->leftpix]];
 
@@ -177,32 +177,32 @@ void ScaleShape (int xcenter, int shapenum, int height, uint32_t flags)
 =
 = NO CLIPPING, height in pixels
 =
-= Draws a compiled shape at [scale] pixels high
+= Draws a compiled shape at [height] pixels high
 =
 ===================
 */
 
-void SimpleScaleShape (int xcenter, int shapenum, int height)
+void SimpleScaleShape (int dispx, int shapenum, int dispheight)
 {
     int         i;
     compshape_t *shape;
     byte        *linesrc,*linecmds;
-    int16_t     scale,toppix;
-    int16_t     x1,x2,actx;
+    int         height,toppix;
+    int         x1,x2,xcenter;
     fixed       frac,fracstep;
 
-    scale = height >> 1;
+    height = dispheight >> 1;
 
     linesrc = PM_GetSpritePage(shapenum);
     shape = (compshape_t *)linesrc;
 
-    fracstep = FixedDiv(scale,TEXTURESIZE/2);
+    fracstep = FixedDiv(height,TEXTURESIZE/2);
     frac = shape->leftpix * fracstep;
 
-    actx = xcenter - scale;
-    toppix = centery - scale;
+    xcenter = dispx - height;
+    toppix = centery - height;
 
-    x2 = (frac >> FRACBITS) + actx;
+    x2 = (frac >> FRACBITS) + xcenter;
 
     for (i = shape->leftpix; i <= shape->rightpix; i++)
     {
@@ -212,7 +212,7 @@ void SimpleScaleShape (int xcenter, int shapenum, int height)
         x1 = x2;
 
         frac += fracstep;
-        x2 = (frac >> FRACBITS) + actx;
+        x2 = (frac >> FRACBITS) + xcenter;
 
         while (x1 < x2)
         {

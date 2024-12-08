@@ -1225,8 +1225,8 @@ typedef struct
 } compshape_t;
 
 
-void ScaleShape (int xcenter, int shapenum, int height, uint32_t flags);
-void SimpleScaleShape (int xcenter, int shapenum, int height);
+void ScaleShape (visobj_t *sprite);
+void SimpleScaleShape (int dispx, int shapenum, int dispheight);
 #ifdef USE_DIR3DSPR
 void Transform3DShape (visobj_t *sprite);
 #endif
