@@ -1,8 +1,7 @@
 // WL_PLAY.C
 
 #include "wl_def.h"
-#include "wl_cloudsky.h"
-#include "wl_shade.h"
+
 
 /*
 =============================================================================

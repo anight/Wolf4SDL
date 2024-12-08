@@ -32,7 +32,7 @@
 ===================
 */
 
-void ScaleLine (int16_t x, int16_t toppix, fixed fracstep, byte *linesrc, byte *linecmds, byte *curshades)
+void ScaleLine (int16_t x, int16_t toppix, fixed fracstep, byte *linesrc, byte *linecmds, byte *shade)
 {
     byte  *src,*dest;
     int   color;
@@ -69,12 +69,10 @@ void ScaleLine (int16_t x, int16_t toppix, fixed fracstep, byte *linesrc, byte *
                 endpix = viewheight;            // clip lower boundary
 
 #ifdef USE_SHADING
-            if (curshades)
-                color = curshades[*src];
-            else
+            color = shade[*src];
+#else
+            color = *src;
 #endif
-                color = *src;
-
             dest = vbuf + ylookup[startpix] + x;
 
             while (startpix < endpix)
@@ -105,7 +103,7 @@ void ScaleShape (visobj_t *sprite)
     int         i;
     compshape_t *shape;
     byte        *linesrc,*linecmds;
-    byte        *curshades = NULL;
+    byte        *shade = NULL;
     int         height,toppix;
     int         x1,x2,xcenter;
     fixed       frac,fracstep;
@@ -117,14 +115,9 @@ void ScaleShape (visobj_t *sprite)
 
     linesrc = PM_GetSpritePage(sprite->shapenum);
     shape = (compshape_t *)linesrc;
-
 #ifdef USE_SHADING
-    if (sprite->flags & FL_FULLBRIGHT)
-        curshades = shadetable[0];
-    else
-        curshades = shadetable[GetShade(sprite->viewheight)];
+    shade = GetShade(sprite->viewheight,sprite->flags);
 #endif
-
     fracstep = FixedDiv(height,TEXTURESIZE/2);
     frac = shape->leftpix * fracstep;
 
@@ -161,7 +154,7 @@ void ScaleShape (visobj_t *sprite)
             {
                 linecmds = &linesrc[shape->dataofs[i - shape->leftpix]];
 
-                ScaleLine (x1,toppix,fracstep,linesrc,linecmds,curshades);
+                ScaleLine (x1,toppix,fracstep,linesrc,linecmds,shade);
             }
 
             x1++;
@@ -187,6 +180,7 @@ void SimpleScaleShape (int dispx, int shapenum, int dispheight)
     int         i;
     compshape_t *shape;
     byte        *linesrc,*linecmds;
+    byte        *shade = NULL;
     int         height,toppix;
     int         x1,x2,xcenter;
     fixed       frac,fracstep;
@@ -195,7 +189,9 @@ void SimpleScaleShape (int dispx, int shapenum, int dispheight)
 
     linesrc = PM_GetSpritePage(shapenum);
     shape = (compshape_t *)linesrc;
-
+#ifdef USE_SHADING
+    shade = GetShade(dispheight,FL_FULLBRIGHT);
+#endif
     fracstep = FixedDiv(height,TEXTURESIZE/2);
     frac = shape->leftpix * fracstep;
 
@@ -218,7 +214,7 @@ void SimpleScaleShape (int dispx, int shapenum, int dispheight)
         {
             linecmds = &linesrc[shape->dataofs[i - shape->leftpix]];
 
-            ScaleLine (x1,toppix,fracstep,linesrc,linecmds,NULL);
+            ScaleLine (x1,toppix,fracstep,linesrc,linecmds,shade);
 
             x1++;
         }
@@ -242,7 +238,7 @@ void Scale3DShape (visobj_t *sprite, int x1, int x2, fixed ny1, fixed ny2, fixed
     int         i;
     compshape_t *shape;
     byte        *linesrc,*linecmds;
-    byte        *curshades;
+    byte        *shade = NULL;
     int16_t     scale1,toppix;
     int16_t     dx,len,slinex;
     int16_t     xpos[TEXTURESIZE + 1];
@@ -315,17 +311,14 @@ void Scale3DShape (visobj_t *sprite, int x1, int x2, fixed ny1, fixed ny2, fixed
             if (wallheight[slinex] < (height >> 12))
             {
 #ifdef USE_SHADING
-                if (sprite->flags & FL_FULLBRIGHT)
-                    curshades = shadetable[0];
-                else
-                    curshades = shadetable[GetShade(scale1 << 3)];
+                shade = GetShade(scale1 << 3,sprite->flags);
 #endif
                 fracstep = FixedDiv(scale1,TEXTURESIZE/2);
                 toppix = centery - scale1;
 
                 linecmds = &linesrc[shape->dataofs[i]];
 
-                ScaleLine (slinex,toppix,fracstep,linesrc,linecmds,curshades);
+                ScaleLine (slinex,toppix,fracstep,linesrc,linecmds,shade);
             }
         }
     }

@@ -309,7 +309,7 @@ void ScalePost (void)
 #endif
 
 #ifdef USE_SHADING
-    byte *curshades = shadetable[GetShade(wallheight[postx])];
+    byte *shade = GetShade(wallheight[postx],0);
 #endif
 
     ywcount = yd = wallheight[postx] >> 3;
@@ -335,7 +335,7 @@ void ScalePost (void)
     if(yw < 0) return;
 
 #ifdef USE_SHADING
-    col = curshades[postsource[yw]];
+    col = shade[postsource[yw]];
 #else
     col = postsource[yw];
 #endif
@@ -354,7 +354,7 @@ void ScalePost (void)
             while(ywcount <= 0);
             if(yw < 0) break;
 #ifdef USE_SHADING
-            col = curshades[postsource[yw]];
+            col = shade[postsource[yw]];
 #else
             col = postsource[yw];
 #endif
@@ -615,20 +615,30 @@ byte vgaCeiling[]=
 
 void VGAClearScreen (void)
 {
-    byte ceiling=vgaCeiling[gamestate.episode*10+gamestate.mapon];
+    byte ceiling = vgaCeiling[(gamestate.episode * 10) + gamestate.mapon];
 
     int y;
-    byte *dest = vbuf;
+    byte *src,*dest = vbuf;
 #ifdef USE_SHADING
-    for(y = 0; y < viewheight / 2; y++, dest += bufferPitch)
-        memset(dest, shadetable[GetShade((viewheight / 2 - y) << 3)][ceiling], viewwidth);
-    for(; y < viewheight; y++, dest += bufferPitch)
-        memset(dest, shadetable[GetShade((y - viewheight / 2) << 3)][0x19], viewwidth);
+    for (y = 0; y < centery; y++, dest += bufferPitch)
+    {
+        src = GetShade((centery - y) << 3,0);
+
+        memset (dest,src[ceiling],viewwidth);
+    }
+
+    for (; y < viewheight; y++, dest += bufferPitch)
+    {
+        src = GetShade((y - centery) << 3,0);
+
+        memset (dest,src[0x19],viewwidth);
+    }
 #else
-    for(y = 0; y < viewheight / 2; y++, dest += bufferPitch)
-        memset(dest, ceiling, viewwidth);
-    for(; y < viewheight; y++, dest += bufferPitch)
-        memset(dest, 0x19, viewwidth);
+    for (y = 0; y < centery; y++, dest += bufferPitch)
+        memset (dest,ceiling,viewwidth);
+
+    for (; y < viewheight; y++, dest += bufferPitch)
+        memset (dest,0x19,viewwidth);
 #endif
 }
 

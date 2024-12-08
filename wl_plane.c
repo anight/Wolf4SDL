@@ -54,7 +54,7 @@ void DrawSpan (int x1, int x2, int height)
         return;                                                 // nothing to draw
 
 #ifdef USE_SHADING
-    shade = shadetable[GetShade(height << 3)];
+    shade = GetShade(height << 3,0);
 #endif
     dest = vbuf + ylookup[centery - 1 - height] + x1;
     rowofs = ylookup[(height << 1) + 1];                        // toprow to bottomrow delta
@@ -180,7 +180,7 @@ void DrawSpan (int x1, int x2, int height)
         return;                                         // nothing to draw
 
 #ifdef USE_SHADING
-    shade = shadetable[GetShade(height << 3)];
+    shade = GetShade(height << 3,0);
 #endif
     dest = vbuf + ylookup[centery - 1 - height] + x1;
     rowofs = ylookup[(height << 1) + 1];                // toprow to bottomrow delta
