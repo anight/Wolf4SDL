@@ -550,7 +550,7 @@ LevelCompleted (void)
     VWB_DrawPic (0, 16, L_GUYPIC);
 
 #ifndef SPEAR
-    if (gamestate.mapon < 8)
+    if (gamestate.mapon < LRpack)
 #else
     if (gamestate.mapon != 4 && gamestate.mapon != 9 && gamestate.mapon != 15 && gamestate.mapon < 17)
 #endif
