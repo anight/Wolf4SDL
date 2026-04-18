@@ -907,14 +907,14 @@ void CAL_DeplaneGrChunk (int chunk)
         width = height = 8;
 
         for (i = 0; i < NUMTILE8; i++)
-            VL_DePlaneVGA (grsegs[chunk] + (i * (width * height)),width,height);
+            VW_DePlaneVGA (grsegs[chunk] + (i * (width * height)),width,height);
     }
     else
     {
         width = pictable[chunk - STARTPICS].width;
         height = pictable[chunk - STARTPICS].height;
 
-        VL_DePlaneVGA (grsegs[chunk],width,height);
+        VW_DePlaneVGA (grsegs[chunk],width,height);
     }
 }
 

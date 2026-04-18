@@ -3826,8 +3826,8 @@ void    A_StartDeathCam (objtype *ob)
     if (viewsize != 21)
         fadeheight -= STATUSLINES;
 
-    VL_Bar (0,0,basescreenWidth,fadeheight,bordercol);
-    FizzleFade (0,0,basescreenWidth,fadeheight,70,false);
+    VW_Bar (0,0,basescreenWidth,fadeheight,bordercol);
+    VW_FizzleFade (0,0,basescreenWidth,fadeheight,70,false);
 
     if (bordercol != VIEWCOLOR)
     {
@@ -3840,7 +3840,7 @@ void    A_StartDeathCam (objtype *ob)
     {
 #ifdef JAPAN
 #ifndef JAPDEMO
-        VWB_DrawPic (0,0,C_LETSSEEPIC);
+        VW_DrawPic (0,0,C_LETSSEEPIC);
 #endif
 #else
         Write(0,7,STR_SEEAGAIN);

@@ -651,7 +651,7 @@ void CheckKeys (void)
     if(Paused)
     {
         int lastoffs = StopMusic();
-        VWB_DrawPic (16 * 8, 80 - 2 * 8, PAUSEDPIC);
+        VW_DrawPic (16 * 8, 80 - 2 * 8, PAUSEDPIC);
         VW_UpdateScreen();
         IN_Ack ();
         Paused = false;
@@ -1092,17 +1092,17 @@ void UpdatePaletteShifts (void)
 
     if (red)
     {
-        VL_SetPalette (redshifts[red - 1], false);
+        VW_SetPalette (redshifts[red - 1], false);
         palshifted = true;
     }
     else if (white)
     {
-        VL_SetPalette (whiteshifts[white - 1], false);
+        VW_SetPalette (whiteshifts[white - 1], false);
         palshifted = true;
     }
     else if (palshifted)
     {
-        VL_SetPalette (gamepal, false);        // back to normal
+        VW_SetPalette (gamepal, false);        // back to normal
         palshifted = false;
     }
 }
@@ -1123,7 +1123,7 @@ void FinishPaletteShifts (void)
     if (palshifted)
     {
         palshifted = false;
-        VL_SetPalette (gamepal, true);
+        VW_SetPalette (gamepal, true);
     }
 }
 

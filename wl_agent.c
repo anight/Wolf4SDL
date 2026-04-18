@@ -265,7 +265,7 @@ void ControlMovement (objtype *ob)
 
 void StatusDrawPic (unsigned x, unsigned y, unsigned picnum)
 {
-    VWB_DrawPic (x,basescreenHeight - (STATUSLINES - y),picnum);
+    VW_DrawPic (x,basescreenHeight - (STATUSLINES - y),picnum);
 }
 
 void StatusDrawFace(unsigned picnum)

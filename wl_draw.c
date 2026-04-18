@@ -1486,7 +1486,7 @@ void ThreeDRefresh (void)
     mapseen[player->tilex][player->tiley] = true;
 #endif
 
-    vbuf = VL_LockSurface(screenBuffer);
+    vbuf = VW_LockSurface(screenBuffer);
     if(vbuf == NULL) return;
 
     vbuf += screenofs;
@@ -1539,7 +1539,7 @@ void ThreeDRefresh (void)
     if (Keyboard[sc_Tab] && viewsize == 21 && gamestate.weapon != -1)
         ShowStatusBar ();
 
-    VL_UnlockSurface(screenBuffer);
+    VW_UnlockSurface(screenBuffer);
     vbuf = NULL;
 
 //
@@ -1548,7 +1548,7 @@ void ThreeDRefresh (void)
 
     if (fizzlein)
     {
-        FizzleFade (0,0,basescreenWidth,basescreenHeight,20,false);
+        VW_FizzleFade (0,0,basescreenWidth,basescreenHeight,20,false);
         fizzlein = false;
 
         lasttimecount = GetTimeCount();          // don't make a big tic count
@@ -1561,7 +1561,7 @@ void ThreeDRefresh (void)
             fontnumber = 0;
             SETFONTCOLOR(7,127);
             PrintX=4; PrintY=1;
-            VWB_Bar(0,0,50,10,bordercol);
+            VW_Bar(0,0,50,10,bordercol);
             US_PrintSigned(fps);
             US_Print(" fps");
         }

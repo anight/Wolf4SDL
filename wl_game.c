@@ -832,29 +832,29 @@ void DrawPlayBorderSides (void)
 
     if (xl)
     {
-	    VWB_Bar (0,           0, xl - 1, h, bordercol);                 // left side
-	    VWB_Bar (xl + vw + 1, 0, xl - 2, h, bordercol);                 // right side
+	    VW_Bar (0,           0, xl - 1, h, bordercol);                 // left side
+	    VW_Bar (xl + vw + 1, 0, xl - 2, h, bordercol);                 // right side
     }
 
     if (yl)
     {
-	    VWB_Bar (0, 0,           sw, yl - 1, bordercol);                    // upper side
-	    VWB_Bar (0, yl + vh + 1, sw, yl - 1, bordercol);                    // lower side
+	    VW_Bar (0, 0,           sw, yl - 1, bordercol);                    // upper side
+	    VW_Bar (0, yl + vh + 1, sw, yl - 1, bordercol);                    // lower side
     }
 
     if (xl)
     {
         // Paint game view border lines
-	    VWB_Bar (xl - 1,  yl - 1,  vw + 1, 1,      0);                      // upper border
-	    VWB_Bar (xl,      yl + vh, vw + 1, 1,      bordercol - 2);          // lower border
-	    VWB_Bar (xl - 1,  yl - 1,  1,      vh + 1, 0);                      // left border
-	    VWB_Bar (xl + vw, yl - 1,  1,      vh + 2, bordercol - 2);          // right border
-	    VWB_Bar (xl - 1,  yl + vh, 1,      1,      bordercol - 3);          // lower left highlight
+	    VW_Bar (xl - 1,  yl - 1,  vw + 1, 1,      0);                      // upper border
+	    VW_Bar (xl,      yl + vh, vw + 1, 1,      bordercol - 2);          // lower border
+	    VW_Bar (xl - 1,  yl - 1,  1,      vh + 1, 0);                      // left border
+	    VW_Bar (xl + vw, yl - 1,  1,      vh + 2, bordercol - 2);          // right border
+	    VW_Bar (xl - 1,  yl + vh, 1,      1,      bordercol - 3);          // lower left highlight
     }
     else
     {
         // Just paint a lower border line
-        VWB_Bar (0, yl + vh, vw, 1, bordercol - 2);       // lower border
+        VW_Bar (0, yl + vh, vw, 1, bordercol - 2);       // lower border
     }
 }
 
@@ -872,16 +872,16 @@ void DrawStatusBorder (byte color)
     int sw = basescreenWidth;
     int sh = basescreenHeight;
 
-    VWB_Bar (0,0,sw,sh - (STATUSLINES - 3),color);
-    VWB_Bar (0,sh - (STATUSLINES - 3),8,STATUSLINES - 4,color);
-    VWB_Bar (0,sh - 2,sw,2,color);
-    VWB_Bar (sw - 8,sh - (STATUSLINES - 3),8,STATUSLINES - 4,color);
+    VW_Bar (0,0,sw,sh - (STATUSLINES - 3),color);
+    VW_Bar (0,sh - (STATUSLINES - 3),8,STATUSLINES - 4,color);
+    VW_Bar (0,sh - 2,sw,2,color);
+    VW_Bar (sw - 8,sh - (STATUSLINES - 3),8,STATUSLINES - 4,color);
 
-    VWB_Bar (9,sh - 3,97,1,color - 1);
-    VWB_Bar (106,sh - 3,161,1,color - 2);
-    VWB_Bar (267,sh - 3,44,1,color - 3);
-    VWB_Bar (sw - 9,sh - (STATUSLINES - 4),1,20,color - 2);
-    VWB_Bar (sw - 9,sh - ((STATUSLINES / 2) - 4),1,14,color - 3);
+    VW_Bar (9,sh - 3,97,1,color - 1);
+    VW_Bar (106,sh - 3,161,1,color - 2);
+    VW_Bar (267,sh - 3,44,1,color - 3);
+    VW_Bar (sw - 9,sh - (STATUSLINES - 4),1,20,color - 2);
+    VW_Bar (sw - 9,sh - ((STATUSLINES / 2) - 4),1,14,color - 3);
 }
 
 
@@ -904,29 +904,29 @@ void DrawPlayBorder (void)
         DrawStatusBorder (bordercol);
     else
     {
-        VWB_Bar (0,basescreenHeight - STATUSLINES,8,STATUSLINES,bordercol);
-        VWB_Bar (basescreenWidth - 8,basescreenHeight - STATUSLINES,8,STATUSLINES,bordercol);
+        VW_Bar (0,basescreenHeight - STATUSLINES,8,STATUSLINES,bordercol);
+        VW_Bar (basescreenWidth - 8,basescreenHeight - STATUSLINES,8,STATUSLINES,bordercol);
     }
 
     if (viewheight == screenHeight)
         return;
 
-    VWB_Bar (0,0,basescreenWidth,basescreenHeight - STATUSLINES,bordercol);
-    VWB_Bar (xl,yl,vw,vh,0);
+    VW_Bar (0,0,basescreenWidth,basescreenHeight - STATUSLINES,bordercol);
+    VW_Bar (xl,yl,vw,vh,0);
 
     if (xl)
     {
         // Paint game view border lines
-        VWB_Bar (xl - 1,  yl - 1,  vw + 1, 1,      0);              // upper border
-        VWB_Bar (xl,      yl + vh, vw + 1, 1,      bordercol - 2);  // lower border
-        VWB_Bar (xl - 1,  yl - 1,  1,      vh + 1, 0);              // left border
-        VWB_Bar (xl + vw, yl - 1,  1,      vh + 2, bordercol - 2);  // right border
-        VWB_Bar (xl - 1,  yl + vh, 1,      1,      bordercol - 3);  // lower left highlight
+        VW_Bar (xl - 1,  yl - 1,  vw + 1, 1,      0);              // upper border
+        VW_Bar (xl,      yl + vh, vw + 1, 1,      bordercol - 2);  // lower border
+        VW_Bar (xl - 1,  yl - 1,  1,      vh + 1, 0);              // left border
+        VW_Bar (xl + vw, yl - 1,  1,      vh + 2, bordercol - 2);  // right border
+        VW_Bar (xl - 1,  yl + vh, 1,      1,      bordercol - 3);  // lower left highlight
     }
     else
     {
         // Just paint a lower border line
-        VWB_Bar (0, yl + vh, vw, 1, bordercol - 2);       // lower border
+        VW_Bar (0, yl + vh, vw, 1, bordercol - 2);       // lower border
     }
 }
 
@@ -941,7 +941,7 @@ void DrawPlayBorder (void)
 
 void DrawPlayScreen (void)
 {
-    VWB_DrawPic (0,basescreenHeight - STATUSLINES,STATUSBARPIC);
+    VW_DrawPic (0,basescreenHeight - STATUSLINES,STATUSBARPIC);
     DrawPlayBorder ();
 
     DrawFace ();
@@ -970,7 +970,7 @@ void ShowStatusBar (void)
     const int width = pictable[STATUSBARPIC - STARTPICS].width;
     const int height = pictable[STATUSBARPIC - STARTPICS].height;
 
-    VL_SegToScreen (grsegs[STATUSBARPIC],width,9,4,9,basescreenHeight - (height - 4),width - 18,height - 7);
+    VW_SegToScreen (grsegs[STATUSBARPIC],width,9,4,9,basescreenHeight - (height - 4),width - 18,height - 7);
 
     ingame = false;
     DrawFace ();
@@ -1307,8 +1307,8 @@ void Died (void)
     //
     FinishPaletteShifts ();
 
-    VL_Bar (baseviewscreenx,baseviewscreeny,baseviewwidth,baseviewheight,4);
-    FizzleFade (baseviewscreenx,baseviewscreeny,baseviewwidth,baseviewheight,70,false);
+    VW_Bar (baseviewscreenx,baseviewscreeny,baseviewwidth,baseviewheight,4);
+    VW_FizzleFade (baseviewscreenx,baseviewscreeny,baseviewwidth,baseviewheight,70,false);
 
     IN_UserInput(100);
     SD_WaitSoundDone ();
@@ -1548,7 +1548,7 @@ void GameLoop (void)
 
                 VW_FadeOut ();
                 if(screenHeight % 200 != 0)
-                    VL_ClearScreen(0);
+                    VW_ClearScreen(0);
 
 #ifdef _arch_dreamcast
                 DC_StatusClearLCD();
@@ -1568,7 +1568,7 @@ void GameLoop (void)
 #ifndef SPEAR
                 VW_FadeOut ();
 #else
-                VL_FadeOut (0,255,0,17,17,300);
+                VW_FadePaletteOut (0,17,17,300);
 #endif
                 ClearMemory ();
 

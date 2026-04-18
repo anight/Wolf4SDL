@@ -176,7 +176,7 @@ void TimedPicCommand (void)
     //
     // draw pic
     //
-    VWB_DrawPic (picx&~7,picy,picnum);
+    VW_DrawPic (picx&~7,picy,picnum);
 }
 
 
@@ -200,7 +200,7 @@ void HandleCommand (void)
             picx=ParseNumber();
             picwidth=ParseNumber();
             picheight=ParseNumber();
-            VWB_Bar(picx,picy,picwidth,picheight,BACKCOLOR);
+            VW_Bar(picx,picy,picwidth,picheight,BACKCOLOR);
             RipToEOL();
             break;
         case ';':               // comment
@@ -248,7 +248,7 @@ void HandleCommand (void)
 
         case 'G':               // ^Gyyy,xxx,ppp draws graphic
             ParsePicCommand ();
-            VWB_DrawPic (picx&~7,picy,picnum);
+            VW_DrawPic (picx&~7,picy,picnum);
             picwidth = pictable[picnum-STARTPICS].width;
             picheight = pictable[picnum-STARTPICS].height;
             //
@@ -387,7 +387,7 @@ void HandleWord (void)
     // print it
     //
     newpos = px+wwidth;
-    VWB_DrawPropString (wword);
+    VW_DrawPropString (wword);
     px = newpos;
 
     //
@@ -423,11 +423,11 @@ void PageLayout (boolean shownumber)
     //
     // clear the screen
     //
-    VWB_Bar (0,0,320,200,BACKCOLOR);
-    VWB_DrawPic (0,0,H_TOPWINDOWPIC);
-    VWB_DrawPic (0,8,H_LEFTWINDOWPIC);
-    VWB_DrawPic (312,8,H_RIGHTWINDOWPIC);
-    VWB_DrawPic (8,176,H_BOTTOMINFOPIC);
+    VW_Bar (0,0,320,200,BACKCOLOR);
+    VW_DrawPic (0,0,H_TOPWINDOWPIC);
+    VW_DrawPic (0,8,H_LEFTWINDOWPIC);
+    VW_DrawPic (312,8,H_RIGHTWINDOWPIC);
+    VW_DrawPic (8,176,H_BOTTOMINFOPIC);
 
 
     for (i=0; i<TEXTROWS; i++)
@@ -490,7 +490,7 @@ void PageLayout (boolean shownumber)
         py = 183;
         fontcolor = 0x4f;                          //12^BACKCOLOR;
 
-        VWB_DrawPropString (str);
+        VW_DrawPropString (str);
     }
 
     fontcolor = oldfontcolor;
@@ -629,7 +629,7 @@ void ShowArticle (char *article)
     text = article;
     oldfontnumber = fontnumber;
     fontnumber = 0;
-    VWB_Bar (0,0,320,200,BACKCOLOR);
+    VW_Bar (0,0,320,200,BACKCOLOR);
     CacheLayout ();
 #endif
 
@@ -643,16 +643,16 @@ void ShowArticle (char *article)
             newpage = false;
 #ifdef JAPAN
             if (!which)
-                VWB_DrawPic (0,0,snames[pagenum - 1]);
+                VW_DrawPic (0,0,snames[pagenum - 1]);
             else
-                VWB_DrawPic (0,0,enames[which*2 + pagenum - 1]);
+                VW_DrawPic (0,0,enames[which*2 + pagenum - 1]);
 #else
             PageLayout (true);
 #endif
             VW_UpdateScreen ();
             if (firstpage)
             {
-                VL_FadeIn(0,255,gamepal,10);
+                MenuFadeIn ();
                 firstpage = false;
             }
         }

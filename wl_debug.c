@@ -164,7 +164,7 @@ void BasicOverhead (void)
     for (y = 0; y < mapheight; y++)
     {
         for (x = 0; x < mapwidth; x++)
-            VWB_Bar ((x * zoom) + offx,(y * zoom) + offy,zoom,zoom,(byte)(uintptr_t)actorat[x][y]);
+            VW_Bar ((x * zoom) + offx,(y * zoom) + offy,zoom,zoom,(byte)(uintptr_t)actorat[x][y]);
     }
 
     //
@@ -196,11 +196,11 @@ void BasicOverhead (void)
             else if (tile < BIT_ALLTILES)
                 color = 146;
 
-            VWB_Bar ((x * zoom) + offx,(y * zoom) + offy,zoom,zoom,color);
+            VW_Bar ((x * zoom) + offx,(y * zoom) + offy,zoom,zoom,color);
         }
     }
 
-    VWB_Bar ((player->tilex * zoom) + offx,(player->tiley * zoom) + offy,zoom,zoom,15);
+    VW_Bar ((player->tilex * zoom) + offx,(player->tiley * zoom) + offy,zoom,zoom,15);
 
     VW_UpdateScreen ();
     IN_Ack ();
@@ -269,7 +269,7 @@ void ShapeTest (void)
                 //
                 // draw the wall
                 //
-                vbuf = VL_LockSurface(screenBuffer);
+                vbuf = VW_LockSurface(screenBuffer);
 
                 if (!vbuf)
                     Quit ("ShapeTest: Unable to create surface for walls!");
@@ -296,7 +296,7 @@ void ShapeTest (void)
                 viewheight = oldviewheight;
                 centery = viewheight / 2;
 
-                VL_UnlockSurface (screenBuffer);
+                VW_UnlockSurface (screenBuffer);
                 vbuf = NULL;
             }
             else if (i < PMSoundStart)
@@ -304,7 +304,7 @@ void ShapeTest (void)
                 //
                 // draw the sprite
                 //
-                vbuf = VL_LockSurface(screenBuffer);
+                vbuf = VW_LockSurface(screenBuffer);
 
                 if (!vbuf)
                     Quit ("ShapeTest: Unable to create surface for sprites!");
@@ -318,7 +318,7 @@ void ShapeTest (void)
                 viewheight = oldviewheight;
                 centery = viewheight / 2;
 
-                VL_UnlockSurface(screenBuffer);
+                VW_UnlockSurface(screenBuffer);
                 vbuf = NULL;
             }
             else if (i == ChunksInFile - 1)
@@ -371,11 +371,11 @@ void ShapeTest (void)
                     v2 /= 4;
 
                     if (v2 < 0)
-                        VWB_Vlin (WindowY + WindowH - 32 + v2,
+                        VW_Vlin (WindowY + WindowH - 32 + v2,
                                   WindowY + WindowH - 32,
                                   WindowX + 8 + (j / 32),BLACK);
                     else
-                        VWB_Vlin (WindowY + WindowH - 32,
+                        VW_Vlin (WindowY + WindowH - 32,
                                   WindowY + WindowH - 32 + v2,
                                   WindowX + 8 + (j / 32),BLACK);
                 }
@@ -972,7 +972,7 @@ void OverheadRefresh (void)
     statobj_t *statptr;
     objtype   *obj;
 
-    vbuf = VL_LockSurface(screenBuffer);
+    vbuf = VW_LockSurface(screenBuffer);
 
     if (!vbuf)
         Quit ("OverheadRefresh: Unable to create surface!");
@@ -1054,12 +1054,12 @@ void OverheadRefresh (void)
     if (screenHeight != (viewtiley * tilesize))
         DrawMapBorder ();
 
-    VL_WaitVBL (3);                // don't scroll too fast
+    VW_WaitVBL (3);                // don't scroll too fast
 
-    VL_UnlockSurface (screenBuffer);
+    VW_UnlockSurface (screenBuffer);
     vbuf = NULL;
 
-    VH_UpdateScreen (screenBuffer);
+    VW_UpdateScreen ();
 }
 
 

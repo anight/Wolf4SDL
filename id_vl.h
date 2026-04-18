@@ -1,16 +1,32 @@
-// ID_VL.H
+// ID_VW.H
 
-#ifndef __ID_VL_H_
-#define __ID_VL_H_
+#ifndef _ID_VW_H_
+#define _ID_VW_H_
 
-// wolf compatability
 
-//===========================================================================
+#define WHITE			15			// graphics mode independant colors
+#define BLACK			0
 
-#define CHARWIDTH		2
-#define TILEWIDTH		4
 
-//===========================================================================
+typedef struct
+{
+	int16_t width,height;
+} pictabletype;
+
+
+typedef struct
+{
+	int16_t height;
+	int16_t location[256];
+	int8_t width[256];
+} fontstruct;
+
+
+extern	pictabletype	*pictable;
+
+extern  byte            fontcolor,backcolor;
+extern	int             fontnumber;
+extern	int             px,py;
 
 extern SDL_Surface *screen, *screenBuffer;
 extern SDL_Window *window;
@@ -33,39 +49,50 @@ extern SDL_Color gamepal[256];
 
 //===========================================================================
 
-//
-// VGA hardware routines
-//
+#define SETFONTCOLOR(f,b) fontcolor=f;backcolor=b;
 
-#define VL_WaitVBL(a)        SDL_Delay((a)*8)
-#define VL_ClearScreen(c)    SDL_FillRect(screenBuffer,NULL,(c))
+#define VW_WaitVBL(a)        SDL_Delay((a) * 8)
+#define VW_ClearScreen(c)    SDL_FillRect(screenBuffer,NULL,(c))
 
-void VL_DePlaneVGA (byte *source, int width, int height);
-void VL_SetVGAPlaneMode (void);
-void VL_SetTextMode (void);
-void VL_Shutdown (void);
+#define VW_FadeIn()		    VW_FadePaletteIn(gamepal,30)
+#define VW_FadeOut()	    VW_FadePaletteOut(0,0,0,30)
 
-void VL_ConvertPalette (byte *srcpal, SDL_Color *destpal, int numColors);
-void VL_FillPalette (int red, int green, int blue);
-void VL_GetColor (int color, int *red, int *green, int *blue);
-void VL_SetPalette (SDL_Color *palette, bool forceupdate);
-void VL_GetPalette (SDL_Color *palette);
-void VL_FadeOut (int start, int end, int red, int green, int blue, int steps);
-void VL_FadeIn (int start, int end, SDL_Color *palette, int steps);
+void VW_DePlaneVGA (byte *source, int width, int height);
+void VW_SetVGAPlaneMode (void);
+void VW_Startup (void);
+void VW_Shutdown (void);
 
-byte *VL_LockSurface(SDL_Surface *surface);
-void VL_UnlockSurface(SDL_Surface *surface);
+void VW_ConvertPalette (byte *srcpal, SDL_Color *destpal, int numColors);
+void VW_FillPalette (int red, int green, int blue);
+void VW_GetColor (int color, int *red, int *green, int *blue);
+void VW_SetPalette (SDL_Color *palette, bool forceupdate);
+void VW_GetPalette (SDL_Color *palette);
+void VW_FadePaletteOut (int red, int green, int blue, int steps);
+void VW_FadePaletteIn (SDL_Color *palette, int steps);
 
-byte VL_GetPixel (int x, int y);
-void VL_Plot (int x, int y, int color);
-void VL_Hlin (int x, int y, int width, int color);
-void VL_Vlin (int x, int y, int height, int color);
-void VL_Bar (int x, int y, int width, int height, int color);
+byte *VW_LockSurface(SDL_Surface *surface);
+void VW_UnlockSurface(SDL_Surface *surface);
 
-void VL_ScreenToScreen (SDL_Surface *source, SDL_Surface *dest);
-void VL_SegToScreen (byte *source, int srcwidth, int srcx, int srcy,
+byte VW_GetPixel (int x, int y);
+void VW_Plot (int x, int y, int color);
+void VW_Hlin (int x1, int x2, int y, int color);
+void VW_Vlin (int y1, int y2, int x, int color);
+void VW_Bar (int x, int y, int width, int height, int color);
+
+void VW_DrawPropString	 (const char *string);
+
+void VW_DrawTile8 (int x, int y, int tile);
+void VW_DrawPic (int x, int y, int chunknum);
+
+void VW_UpdateScreen (void);
+
+void VW_SegToScreen (byte *source, int srcwidth, int srcx, int srcy,
                      int destx, int desty, int width, int height);
 
-void VL_MemToScreen (byte *source, int width, int height, int x, int y);
+void VW_MemToScreen (byte *source, int width, int height, int x, int y);
+
+void VW_MeasurePropString (const char *string, word *width, word *height);
+
+boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolean abortable);
 
 #endif

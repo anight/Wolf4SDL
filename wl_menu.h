@@ -12,7 +12,7 @@
 #define BKGDCOLOR       0x9d
 //#define STRIPE                0x9c
 
-#define MenuFadeOut()   VL_FadeOut(0,255,0,0,51,10)
+#define MenuFadeOut()   VW_FadePaletteOut(0,0,51,10)
 
 #else
 
@@ -22,7 +22,7 @@
 #define BKGDCOLOR       0x2d
 #define STRIPE          0x2c
 
-#define MenuFadeOut()   VL_FadeOut(0,255,43,0,0,10)
+#define MenuFadeOut()   VW_FadePaletteOut(43,0,0,10)
 
 #endif
 
@@ -31,7 +31,7 @@
 #define VIEWCOLOR       0x7f
 #define TEXTCOLOR       0x17
 #define HIGHLIGHT       0x13
-#define MenuFadeIn()    VL_FadeIn(0,255,gamepal,10)
+#define MenuFadeIn()    VW_FadePaletteIn(gamepal,10)
 
 
 #define MENUSONG        WONDERIN_MUS

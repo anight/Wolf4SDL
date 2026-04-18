@@ -40,10 +40,10 @@ void
 EndScreen (int palette, int screen)
 {
     SDL_Color pal[256];
-    VWB_DrawPic (0,0,screen);
+    VW_DrawPic (0,0,screen);
     VW_UpdateScreen ();
-    VL_ConvertPalette(grsegs[palette], pal, 256);
-    VL_FadeIn (0, 255, pal, 30);
+    VW_ConvertPalette(grsegs[palette], pal, 256);
+    VW_FadePaletteIn (pal, 30);
     IN_ClearKeysDown ();
     IN_Ack ();
     VW_FadeOut ();
@@ -57,10 +57,10 @@ EndSpear (void)
 
     EndScreen (END1PALETTE, ENDSCREEN11PIC);
 
-    VWB_DrawPic (0,0,ENDSCREEN3PIC);
+    VW_DrawPic (0,0,ENDSCREEN3PIC);
     VW_UpdateScreen ();
-    VL_ConvertPalette(grsegs[END3PALETTE], pal, 256);
-    VL_FadeIn (0, 255, pal, 30);
+    VW_ConvertPalette(grsegs[END3PALETTE], pal, 256);
+    VW_FadePaletteIn (pal, 30);
     fontnumber = 0;
     fontcolor = 0xd0;
     WindowX = 0;
@@ -74,7 +74,7 @@ EndSpear (void)
 
     PrintX = 0;
     PrintY = 180;
-    VWB_Bar (0, 180, 320, 20, 0);
+    VW_Bar (0, 180, 320, 20, 0);
     US_CPrint (STR_ENDGAME3 "\n");
     US_CPrint (STR_ENDGAME4);
     VW_UpdateScreen ();
@@ -123,34 +123,34 @@ Victory (void)
 #ifdef SPEAR
     StartCPMusic (XTHEEND_MUS);
 
-    VWB_Bar (0, 0, 320, 200, VIEWCOLOR);
-    VWB_DrawPic (124, 44, BJCOLLAPSE1PIC);
+    VW_Bar (0, 0, 320, 200, VIEWCOLOR);
+    VW_DrawPic (124, 44, BJCOLLAPSE1PIC);
     VW_UpdateScreen ();
     VW_FadeIn ();
     VW_WaitVBL (2 * 70);
-    VWB_DrawPic (124, 44, BJCOLLAPSE2PIC);
+    VW_DrawPic (124, 44, BJCOLLAPSE2PIC);
     VW_UpdateScreen ();
     VW_WaitVBL (105);
-    VWB_DrawPic (124, 44, BJCOLLAPSE3PIC);
+    VW_DrawPic (124, 44, BJCOLLAPSE3PIC);
     VW_UpdateScreen ();
     VW_WaitVBL (105);
-    VWB_DrawPic (124, 44, BJCOLLAPSE4PIC);
+    VW_DrawPic (124, 44, BJCOLLAPSE4PIC);
     VW_UpdateScreen ();
     VW_WaitVBL (3 * 70);
 
-    VL_FadeOut (0, 255, 0, 17, 17, 5);
+    VW_FadePaletteOut (0, 17, 17, 5);
 #endif
 
     StartCPMusic (URAHERO_MUS);
     ClearSplitVWB ();
 
-    VWB_Bar (0, 0, basescreenWidth, basescreenHeight - STATUSLINES + 1, VIEWCOLOR);
+    VW_Bar (0, 0, basescreenWidth, basescreenHeight - STATUSLINES + 1, VIEWCOLOR);
     if (bordercol != VIEWCOLOR)
         DrawStatusBorder (VIEWCOLOR);
 
 #ifdef JAPAN
 #ifndef JAPDEMO
-    VWB_DrawPic (0, 0, C_ENDRATIOSPIC);
+    VW_DrawPic (0, 0, C_ENDRATIOSPIC);
 #endif
 #else
     Write (18, 2, STR_YOUWIN);
@@ -172,7 +172,7 @@ Victory (void)
 #endif
 
 #ifndef JAPDEMO
-    VWB_DrawPic (8, 4, L_BJWINSPIC);
+    VW_DrawPic (8, 4, L_BJWINSPIC);
 #endif
 
 
@@ -201,15 +201,15 @@ Victory (void)
         min = sec = 99;
 
     i = TIMEX * 8 + 1;
-    VWB_DrawPic (i, TIMEY * 8, L_NUM0PIC + (min / 10));
+    VW_DrawPic (i, TIMEY * 8, L_NUM0PIC + (min / 10));
     i += 2 * 8;
-    VWB_DrawPic (i, TIMEY * 8, L_NUM0PIC + (min % 10));
+    VW_DrawPic (i, TIMEY * 8, L_NUM0PIC + (min % 10));
     i += 2 * 8;
     Write (i / 8, TIMEY, ":");
     i += 1 * 8;
-    VWB_DrawPic (i, TIMEY * 8, L_NUM0PIC + (sec / 10));
+    VW_DrawPic (i, TIMEY * 8, L_NUM0PIC + (sec / 10));
     i += 2 * 8;
-    VWB_DrawPic (i, TIMEY * 8, L_NUM0PIC + (sec % 10));
+    VW_DrawPic (i, TIMEY * 8, L_NUM0PIC + (sec % 10));
     VW_UpdateScreen ();
 
     itoa (kr, tempstr, 10);
@@ -232,7 +232,7 @@ Victory (void)
     //
     if (gamestate.difficulty >= gd_medium)
     {
-        VWB_DrawPic (30 * 8, TIMEY * 8, C_TIMECODEPIC);
+        VW_DrawPic (30 * 8, TIMEY * 8, C_TIMECODEPIC);
         fontnumber = 0;
         fontcolor = READHCOLOR;
         PrintX = 30 * 8 - 3;
@@ -257,7 +257,7 @@ Victory (void)
 
     VW_FadeOut ();
     if(screenHeight % 200 != 0)
-        VL_ClearScreen(0);
+        VW_ClearScreen(0);
 
     MainMenu[savegame].active = 0;  // ADDEDFIX 3 - Tricob
 
@@ -286,9 +286,9 @@ void
 PG13 (void)
 {
     VW_FadeOut ();
-    VWB_Bar (0, 0, 320, 200, 0x82);     // background
+    VW_Bar (0, 0, 320, 200, 0x82);     // background
 
-    VWB_DrawPic (216, 110, PG13PIC);
+    VW_DrawPic (216, 110, PG13PIC);
     VW_UpdateScreen ();
 
     VW_FadeIn ();
@@ -335,13 +335,13 @@ Write (int x, int y, const char *string)
             switch (string[i])
             {
                 case '!':
-                    VWB_DrawPic (nx, ny, L_EXPOINTPIC);
+                    VW_DrawPic (nx, ny, L_EXPOINTPIC);
                     nx += 8;
                     continue;
 
 #ifndef APOGEE_1_0
                 case '\'':
-                    VWB_DrawPic (nx, ny, L_APOSTROPHEPIC);
+                    VW_DrawPic (nx, ny, L_APOSTROPHEPIC);
                     nx += 8;
                     continue;
 #endif
@@ -350,16 +350,17 @@ Write (int x, int y, const char *string)
                     break;
 
                 case ':':
-                    VWB_DrawPic (nx, ny, L_COLONPIC);
+                    VW_DrawPic (nx, ny, L_COLONPIC);
                     nx += 8;
                     continue;
 
                 case '%':
-                    VWB_DrawPic (nx, ny, L_PERCENTPIC);
+                    VW_DrawPic (nx, ny, L_PERCENTPIC);
                     break;
 
                 default:
-                    VWB_DrawPic (nx, ny, alpha[ch]);
+                    VW_DrawPic (nx, ny, alpha[ch]);
+                    break;
             }
             nx += 16;
         }
@@ -381,7 +382,7 @@ BJ_Breathe (void)
     if ((int32_t) GetTimeCount () - lastBreathTime > max)
     {
         which ^= 1;
-        VWB_DrawPic (0, 16, pics[which]);
+        VW_DrawPic (0, 16, pics[which]);
         VW_UpdateScreen ();
         lastBreathTime = GetTimeCount();
         max = 35;
@@ -531,7 +532,7 @@ LevelCompleted (void)
     };
 
     ClearSplitVWB ();           // set up for double buffering in split screen
-    VWB_Bar (0, 0, basescreenWidth, basescreenHeight - STATUSLINES + 1, VIEWCOLOR);
+    VW_Bar (0, 0, basescreenWidth, basescreenHeight - STATUSLINES + 1, VIEWCOLOR);
 
     if (bordercol != VIEWCOLOR)
         DrawStatusBorder (VIEWCOLOR);
@@ -545,9 +546,9 @@ LevelCompleted (void)
     IN_StartAck ();
 
 #ifdef JAPAN
-    VWB_DrawPic (0, 0, C_INTERMISSIONPIC);
+    VW_DrawPic (0, 0, C_INTERMISSIONPIC);
 #endif
-    VWB_DrawPic (0, 16, L_GUYPIC);
+    VW_DrawPic (0, 16, L_GUYPIC);
 
 #ifndef SPEAR
     if (gamestate.mapon < LRpack)
@@ -604,15 +605,15 @@ LevelCompleted (void)
 #else
         i = 26 * 8;
 #endif
-        VWB_DrawPic (i, 10 * 8, L_NUM0PIC + (min / 10));
+        VW_DrawPic (i, 10 * 8, L_NUM0PIC + (min / 10));
         i += 2 * 8;
-        VWB_DrawPic (i, 10 * 8, L_NUM0PIC + (min % 10));
+        VW_DrawPic (i, 10 * 8, L_NUM0PIC + (min % 10));
         i += 2 * 8;
         Write (i / 8, 10, ":");
         i += 1 * 8;
-        VWB_DrawPic (i, 10 * 8, L_NUM0PIC + (sec / 10));
+        VW_DrawPic (i, 10 * 8, L_NUM0PIC + (sec / 10));
         i += 2 * 8;
-        VWB_DrawPic (i, 10 * 8, L_NUM0PIC + (sec % 10));
+        VW_DrawPic (i, 10 * 8, L_NUM0PIC + (sec % 10));
 
         VW_UpdateScreen ();
         VW_FadeIn ();
@@ -918,14 +919,14 @@ boolean PreloadUpdate (unsigned current, unsigned total)
 {
     unsigned w = WindowW - 10;
 
-    VWB_Bar (WindowX + 5,WindowY + WindowH - 3,w,2,BLACK);
+    VW_Bar (WindowX + 5,WindowY + WindowH - 3,w,2,BLACK);
 
     w = ((int32_t) w * current) / total;
 
     if (w)
     {
-        VWB_Bar (WindowX + 5,WindowY + WindowH - 3,w,2,0x37);       //SECONDCOLOR);
-        VWB_Bar (WindowX + 5,WindowY + WindowH - 3,w - 1,1,0x32);
+        VW_Bar (WindowX + 5,WindowY + WindowH - 3,w,2,0x37);       //SECONDCOLOR);
+        VW_Bar (WindowX + 5,WindowY + WindowH - 3,w - 1,1,0x32);
 
     }
 
@@ -944,8 +945,8 @@ void PreloadGraphics (void)
     WindowW = pictable[GETPSYCHEDPIC - STARTPICS].width;
     WindowH = pictable[GETPSYCHEDPIC - STARTPICS].height;
 
-    VWB_Bar (0,0,basescreenWidth,basescreenHeight - (STATUSLINES - 1),bordercol);
-    VWB_DrawPic (WindowX,WindowY,GETPSYCHEDPIC);
+    VW_Bar (0,0,basescreenWidth,basescreenHeight - (STATUSLINES - 1),bordercol);
+    VW_DrawPic (WindowX,WindowY,GETPSYCHEDPIC);
 
     VW_UpdateScreen ();
     VW_FadeIn ();
@@ -986,14 +987,14 @@ DrawHighScores (void)
     ClearMScreen ();
     DrawStripes (10);
 
-    VWB_DrawPic (48, 0, HIGHSCORESPIC);
+    VW_DrawPic (48, 0, HIGHSCORESPIC);
 
 #ifndef APOGEE_1_0
-    VWB_DrawPic (4 * 8, 68, C_NAMEPIC);
-    VWB_DrawPic (20 * 8, 68, C_LEVELPIC);
-    VWB_DrawPic (28 * 8, 68, C_SCOREPIC);
+    VW_DrawPic (4 * 8, 68, C_NAMEPIC);
+    VW_DrawPic (20 * 8, 68, C_LEVELPIC);
+    VW_DrawPic (28 * 8, 68, C_SCOREPIC);
 #else
-    VWB_DrawPic(35*8,68,C_CODEPIC);
+    VW_DrawPic(35*8,68,C_CODEPIC);
 #endif
     fontnumber = 0;
 
@@ -1001,7 +1002,7 @@ DrawHighScores (void)
     ClearMScreen ();
     DrawStripes (10);
 
-    VWB_DrawPic (0, 0, HIGHSCORESPIC);
+    VW_DrawPic (0, 0, HIGHSCORESPIC);
 
     fontnumber = 1;
 #endif
@@ -1034,10 +1035,10 @@ DrawHighScores (void)
 #ifndef SPEAR
         for (str = buffer; *str; str++)
             *str = *str + (129 - '0');  // Used fixed-width numbers (129...)
-        USL_MeasureString (buffer, &w, &h);
+        VW_MeasurePropString (buffer, &w, &h);
         PrintX = (22 * 8) - w;
 #else
-        USL_MeasureString (buffer, &w, &h);
+        VW_MeasurePropString (buffer, &w, &h);
         PrintX = 194 - w;
 #endif
 
@@ -1053,7 +1054,7 @@ DrawHighScores (void)
 
 #ifdef SPEAR
         if (s->completed == 21)
-            VWB_DrawPic (PrintX + 8, PrintY - 1, C_WONSPEARPIC);
+            VW_DrawPic (PrintX + 8, PrintY - 1, C_WONSPEARPIC);
         else
 #endif
             US_Print (buffer);
@@ -1065,10 +1066,10 @@ DrawHighScores (void)
 #ifndef SPEAR
         for (str = buffer; *str; str++)
             *str = *str + (129 - '0');  // Used fixed-width numbers (129...)
-        USL_MeasureString (buffer, &w, &h);
+        VW_MeasurePropString (buffer, &w, &h);
         PrintX = (34 * 8) - 8 - w;
 #else
-        USL_MeasureString (buffer, &w, &h);
+        VW_MeasurePropString (buffer, &w, &h);
         PrintX = 292 - w;
 #endif
         US_Print (buffer);
@@ -1167,7 +1168,7 @@ CheckHighScore (int32_t score, word other)
 #else
         PrintX = 16;
         fontnumber = 1;
-        VWB_Bar (PrintX - 2, PrintY - 2, 145, 15, 0x9c);
+        VW_Bar (PrintX - 2, PrintY - 2, 145, 15, 0x9c);
         VW_UpdateScreen ();
         backcolor = 0x9c;
         fontcolor = 15;
@@ -1389,7 +1390,7 @@ BackDoor (char *s)
             SETFONTCOLOR (14, 15);
             fontnumber = 0;
             PrintY = 175;
-            VWB_DrawPic (0, 20 * 8, COPYPROTBOXPIC);
+            VW_DrawPic (0, 20 * 8, COPYPROTBOXPIC);
             US_CPrint (GoodBoyStrs[i * 2]);
             US_CPrint (GoodBoyStrs[i * 2 + 1]);
             VW_UpdateScreen ();
@@ -1442,9 +1443,9 @@ CopyProtection (void)
     {
         fontnumber = 1;
         SETFONTCOLOR (PRINTCOLOR - 2, 15);
-        VWB_DrawPic (0, 0, C_BACKDROPPIC);
-        VWB_DrawPic (0, 0, COPYPROTTOPPIC);
-        VWB_DrawPic (0, 20 * 8, COPYPROTBOXPIC);
+        VW_DrawPic (0, 0, C_BACKDROPPIC);
+        VW_DrawPic (0, 0, COPYPROTTOPPIC);
+        VW_DrawPic (0, 20 * 8, COPYPROTBOXPIC);
         WindowX = WindowY = 0;
         WindowW = 320;
         WindowH = 200;
@@ -1465,7 +1466,7 @@ CopyProtection (void)
                 while (enemypicked[whichboss = US_RndT () & 3]);
                 enemypicked[whichboss] = 1;
                 bossnum = bosses[whichboss];
-                VWB_DrawPic (128, 60, bossnum);
+                VW_DrawPic (128, 60, bossnum);
                 fontnumber = 0;
                 PrintY = 130;
                 US_CPrint (STR_ENEMY1 "\n");
@@ -1610,7 +1611,7 @@ CopyProtection (void)
             SETFONTCOLOR (14, 15);
             fontnumber = 0;
             PrintY = 175;
-            VWB_DrawPic (0, 20 * 8, COPYPROTBOXPIC);
+            VW_DrawPic (0, 20 * 8, COPYPROTBOXPIC);
             US_CPrint (CopyProFailedStrs[whichline]);
             US_CPrint (CopyProFailedStrs[whichline + 1]);
 

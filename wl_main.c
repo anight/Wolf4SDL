@@ -334,7 +334,7 @@ void DiskFlopAnim(int x,int y)
     static int8_t which=0;
     if (!x && !y)
         return;
-    VWB_DrawPic(x,y,C_DISKLOADING1PIC+which);
+    VW_DrawPic(x,y,C_DISKLOADING1PIC+which);
     VW_UpdateScreen();
     which^=1;
 }
@@ -835,9 +835,9 @@ void SetupWalls (void)
 
 void SignonScreen (void)                        // VGA version
 {
-    VL_SetVGAPlaneMode ();
+    VW_SetVGAPlaneMode ();
 
-    VL_MemToScreen (signon,320,200,0,0);
+    VW_MemToScreen (signon,320,200,0,0);
 }
 
 
@@ -852,7 +852,7 @@ void SignonScreen (void)                        // VGA version
 void FinishSignon (void)
 {
 #ifndef SPEAR
-    VW_Bar (0,189,300,11,VL_GetPixel(0,0));
+    VW_Bar (0,189,300,11,VW_GetPixel(0,0));
     WindowX = 0;
     WindowW = 320;
     PrintY = 190;
@@ -874,7 +874,7 @@ void FinishSignon (void)
         IN_Ack ();
 
     #ifndef JAPAN
-    VW_Bar (0,189,300,11,VL_GetPixel(0,0));
+    VW_Bar (0,189,300,11,VW_GetPixel(0,0));
 
     PrintY = 190;
     SETFONTCOLOR(10,4);
@@ -1139,7 +1139,7 @@ void DoJukebox(void)
 
     fontnumber=1;
     ClearMScreen ();
-    VWB_DrawPic(112,184,C_MOUSELBACKPIC);
+    VW_DrawPic(112,184,C_MOUSELBACKPIC);
     DrawStripes (10);
     SETFONTCOLOR (TEXTCOLOR,BKGDCOLOR);
 
@@ -1224,7 +1224,7 @@ static void InitGame()
 
 	VW_UpdateScreen();
 
-    VH_Startup ();
+    VW_Startup ();
     IN_Startup ();
     PM_Startup ();
     SD_Startup ();
@@ -1375,7 +1375,7 @@ void ShowViewSize (int width)
     baseviewheight = viewheight / scaleFactor;
 
     if (width == 21)
-        VWB_Bar (0,0,baseviewwidth,baseviewheight,0);
+        VW_Bar (0,0,baseviewwidth,baseviewheight,0);
     else
         DrawPlayBorder ();
 
@@ -1537,15 +1537,15 @@ static void DemoLoop()
 
 #ifdef SPEAR
             SDL_Color pal[256];
-            VL_ConvertPalette(grsegs[TITLEPALETTE], pal, 256);
+            VW_ConvertPalette(grsegs[TITLEPALETTE], pal, 256);
 
-            VWB_DrawPic (0,0,TITLE1PIC);
-            VWB_DrawPic (0,80,TITLE2PIC);
+            VW_DrawPic (0,0,TITLE1PIC);
+            VW_DrawPic (0,80,TITLE2PIC);
 
             VW_UpdateScreen ();
-            VL_FadeIn(0,255,pal,30);
+            VW_FadePaletteIn(pal,30);
 #else
-            VWB_DrawPic (0,0,TITLEPIC);
+            VW_DrawPic (0,0,TITLEPIC);
             VW_UpdateScreen ();
             VW_FadeIn();
 #endif
@@ -1555,7 +1555,7 @@ static void DemoLoop()
 //
 // credits page
 //
-            VWB_DrawPic (0,0,CREDITSPIC);
+            VW_DrawPic (0,0,CREDITSPIC);
             VW_UpdateScreen();
             VW_FadeIn ();
             if (IN_UserInput(TickBase*10))
@@ -1585,7 +1585,7 @@ static void DemoLoop()
                 break;
             VW_FadeOut();
             if(screenHeight % 200 != 0)
-                VL_ClearScreen(0);
+                VW_ClearScreen(0);
             StartCPMusic(INTROSONG);
         }
 
