@@ -815,45 +815,46 @@ void SetupGameLevel (void)
 =
 ===================
 */
-void DrawPlayBorderSides(void)
+
+void DrawPlayBorderSides (void)
 {
-    if(viewsize == 21) return;
+    if (viewsize == 21)
+        return;
 
-	const int sw = screenWidth;
-	const int sh = screenHeight;
-	const int vw = viewwidth;
-	const int vh = viewheight;
-	const int px = scaleFactor; // size of one "pixel"
+	const int sw = basescreenWidth;
+	const int sh = basescreenHeight;
+	const int vw = baseviewwidth;
+	const int vh = baseviewheight;
 
-	const int h  = sh - px * STATUSLINES;
-	const int xl = sw / 2 - vw / 2;
+	const int h = sh - STATUSLINES;
+	const int xl = (sw / 2) - (vw / 2);
 	const int yl = (h - vh) / 2;
 
-    if(xl != 0)
+    if (xl)
     {
-	    VWB_BarScaledCoord(0,            0, xl - px,     h, bordercol);                 // left side
-	    VWB_BarScaledCoord(xl + vw + px, 0, xl - px * 2, h, bordercol);                 // right side
+	    VWB_Bar (0,           0, xl - 1, h, bordercol);                 // left side
+	    VWB_Bar (xl + vw + 1, 0, xl - 2, h, bordercol);                 // right side
     }
 
-    if(yl != 0)
+    if (yl)
     {
-	    VWB_BarScaledCoord(0, 0,            sw, yl - px, bordercol);                    // upper side
-	    VWB_BarScaledCoord(0, yl + vh + px, sw, yl - px, bordercol);                    // lower side
+	    VWB_Bar (0, 0,           sw, yl - 1, bordercol);                    // upper side
+	    VWB_Bar (0, yl + vh + 1, sw, yl - 1, bordercol);                    // lower side
     }
 
-    if(xl != 0)
+    if (xl)
     {
         // Paint game view border lines
-	    VWB_BarScaledCoord(xl - px, yl - px, vw + px, px,          0);                      // upper border
-	    VWB_BarScaledCoord(xl,      yl + vh, vw + px, px,          bordercol - 2);          // lower border
-	    VWB_BarScaledCoord(xl - px, yl - px, px,      vh + px,     0);                      // left border
-	    VWB_BarScaledCoord(xl + vw, yl - px, px,      vh + px * 2, bordercol - 2);          // right border
-	    VWB_BarScaledCoord(xl - px, yl + vh, px,      px,          bordercol - 3);          // lower left highlight
+	    VWB_Bar (xl - 1,  yl - 1,  vw + 1, 1,      0);                      // upper border
+	    VWB_Bar (xl,      yl + vh, vw + 1, 1,      bordercol - 2);          // lower border
+	    VWB_Bar (xl - 1,  yl - 1,  1,      vh + 1, 0);                      // left border
+	    VWB_Bar (xl + vw, yl - 1,  1,      vh + 2, bordercol - 2);          // right border
+	    VWB_Bar (xl - 1,  yl + vh, 1,      1,      bordercol - 3);          // lower left highlight
     }
     else
     {
         // Just paint a lower border line
-        VWB_BarScaledCoord(0, yl+vh, vw, px, bordercol-2);       // lower border
+        VWB_Bar (0, yl + vh, vw, 1, bordercol - 2);       // lower border
     }
 }
 
@@ -868,25 +869,19 @@ void DrawPlayBorderSides(void)
 
 void DrawStatusBorder (byte color)
 {
-    int statusborderw = (screenWidth-scaleFactor*320)/2;
+    int sw = basescreenWidth;
+    int sh = basescreenHeight;
 
-    VWB_BarScaledCoord (0,0,screenWidth,screenHeight-scaleFactor*(STATUSLINES-3),color);
-    VWB_BarScaledCoord (0,screenHeight-scaleFactor*(STATUSLINES-3),
-        statusborderw+scaleFactor*8,scaleFactor*(STATUSLINES-4),color);
-    VWB_BarScaledCoord (0,screenHeight-scaleFactor*2,screenWidth,scaleFactor*2,color);
-    VWB_BarScaledCoord (screenWidth-statusborderw-scaleFactor*8, screenHeight-scaleFactor*(STATUSLINES-3),
-        statusborderw+scaleFactor*8,scaleFactor*(STATUSLINES-4),color);
+    VWB_Bar (0,0,sw,sh - (STATUSLINES - 3),color);
+    VWB_Bar (0,sh - (STATUSLINES - 3),8,STATUSLINES - 4,color);
+    VWB_Bar (0,sh - 2,sw,2,color);
+    VWB_Bar (sw - 8,sh - (STATUSLINES - 3),8,STATUSLINES - 4,color);
 
-    VWB_BarScaledCoord (statusborderw+scaleFactor*9, screenHeight-scaleFactor*3,
-        scaleFactor*97, scaleFactor*1, color-1);
-    VWB_BarScaledCoord (statusborderw+scaleFactor*106, screenHeight-scaleFactor*3,
-        scaleFactor*161, scaleFactor*1, color-2);
-    VWB_BarScaledCoord (statusborderw+scaleFactor*267, screenHeight-scaleFactor*3,
-        scaleFactor*44, scaleFactor*1, color-3);
-    VWB_BarScaledCoord (screenWidth-statusborderw-scaleFactor*9, screenHeight-scaleFactor*(STATUSLINES-4),
-        scaleFactor*1, scaleFactor*20, color-2);
-    VWB_BarScaledCoord (screenWidth-statusborderw-scaleFactor*9, screenHeight-scaleFactor*(STATUSLINES/2-4),
-        scaleFactor*1, scaleFactor*14, color-3);
+    VWB_Bar (9,sh - 3,97,1,color - 1);
+    VWB_Bar (106,sh - 3,161,1,color - 2);
+    VWB_Bar (267,sh - 3,44,1,color - 3);
+    VWB_Bar (sw - 9,sh - (STATUSLINES - 4),1,20,color - 2);
+    VWB_Bar (sw - 9,sh - ((STATUSLINES / 2) - 4),1,14,color - 3);
 }
 
 
@@ -900,40 +895,38 @@ void DrawStatusBorder (byte color)
 
 void DrawPlayBorder (void)
 {
-	const int px = scaleFactor; // size of one "pixel"
+    const int vw = baseviewwidth;
+    const int vh = baseviewheight;
+    const int xl = (basescreenWidth / 2) - (vw / 2);
+    const int yl = (basescreenHeight - STATUSLINES - vh) / 2;
 
     if (bordercol != VIEWCOLOR)
-        DrawStatusBorder(bordercol);
+        DrawStatusBorder (bordercol);
     else
     {
-        const int statusborderw = (screenWidth-px*320)/2;
-        VWB_BarScaledCoord (0, screenHeight-px*STATUSLINES,
-            statusborderw+px*8, px*STATUSLINES, bordercol);
-        VWB_BarScaledCoord (screenWidth-statusborderw-px*8, screenHeight-px*STATUSLINES,
-            statusborderw+px*8, px*STATUSLINES, bordercol);
+        VWB_Bar (0,basescreenHeight - STATUSLINES,8,STATUSLINES,bordercol);
+        VWB_Bar (basescreenWidth - 8,basescreenHeight - STATUSLINES,8,STATUSLINES,bordercol);
     }
 
-    if(viewheight == screenHeight) return;
+    if (viewheight == screenHeight)
+        return;
 
-    VWB_BarScaledCoord (0,0,screenWidth,screenHeight-px*STATUSLINES,bordercol);
+    VWB_Bar (0,0,basescreenWidth,basescreenHeight - STATUSLINES,bordercol);
+    VWB_Bar (xl,yl,vw,vh,0);
 
-    const int xl = screenWidth/2-viewwidth/2;
-    const int yl = (screenHeight-px*STATUSLINES-viewheight)/2;
-    VWB_BarScaledCoord (xl,yl,viewwidth,viewheight,0);
-
-    if(xl != 0)
+    if (xl)
     {
         // Paint game view border lines
-        VWB_BarScaledCoord(xl-px, yl-px, viewwidth+px, px, 0);                      // upper border
-        VWB_BarScaledCoord(xl, yl+viewheight, viewwidth+px, px, bordercol-2);       // lower border
-        VWB_BarScaledCoord(xl-px, yl-px, px, viewheight+px, 0);                     // left border
-        VWB_BarScaledCoord(xl+viewwidth, yl-px, px, viewheight+2*px, bordercol-2);  // right border
-        VWB_BarScaledCoord(xl-px, yl+viewheight, px, px, bordercol-3);              // lower left highlight
+        VWB_Bar (xl - 1,  yl - 1,  vw + 1, 1,      0);              // upper border
+        VWB_Bar (xl,      yl + vh, vw + 1, 1,      bordercol - 2);  // lower border
+        VWB_Bar (xl - 1,  yl - 1,  1,      vh + 1, 0);              // left border
+        VWB_Bar (xl + vw, yl - 1,  1,      vh + 2, bordercol - 2);  // right border
+        VWB_Bar (xl - 1,  yl + vh, 1,      1,      bordercol - 3);  // lower left highlight
     }
     else
     {
         // Just paint a lower border line
-        VWB_BarScaledCoord(0, yl+viewheight, viewwidth, px, bordercol-2);       // lower border
+        VWB_Bar (0, yl + vh, vw, 1, bordercol - 2);       // lower border
     }
 }
 
@@ -948,7 +941,7 @@ void DrawPlayBorder (void)
 
 void DrawPlayScreen (void)
 {
-    VWB_DrawPicScaledCoord ((screenWidth-scaleFactor*320)/2,screenHeight-scaleFactor*STATUSLINES,STATUSBARPIC);
+    VWB_DrawPic (0,basescreenHeight - STATUSLINES,STATUSBARPIC);
     DrawPlayBorder ();
 
     DrawFace ();
@@ -961,16 +954,23 @@ void DrawPlayScreen (void)
     DrawScore ();
 }
 
-void ShowActStatus()
+
+/*
+===================
+=
+= ShowStatusBar
+=
+= Draw status bar without borders
+=
+===================
+*/
+
+void ShowStatusBar (void)
 {
-    // Draw status bar without borders
-    byte *source = grsegs[STATUSBARPIC];
-    int	picnum = STATUSBARPIC - STARTPICS;
-    int width = pictable[picnum].width;
-    int height = pictable[picnum].height;
-    int destx = (screenWidth-scaleFactor*320)/2 + 9 * scaleFactor;
-    int desty = screenHeight - (height - 4) * scaleFactor;
-    VL_MemToScreenScaledCoord2(source, width, 9, 4, destx, desty, width - 18, height - 7);
+    const int width = pictable[STATUSBARPIC - STARTPICS].width;
+    const int height = pictable[STATUSBARPIC - STARTPICS].height;
+
+    VL_SegToScreen (grsegs[STATUSBARPIC],width,9,4,9,basescreenHeight - (height - 4),width - 18,height - 7);
 
     ingame = false;
     DrawFace ();
@@ -1307,11 +1307,8 @@ void Died (void)
     //
     FinishPaletteShifts ();
 
-    VL_BarScaledCoord (viewscreenx,viewscreeny,viewwidth,viewheight,4);
-
-    IN_ClearKeysDown ();
-
-    FizzleFade(screenBuffer,viewscreenx,viewscreeny,viewwidth,viewheight,70,false);
+    VL_Bar (baseviewscreenx,baseviewscreeny,baseviewwidth,baseviewheight,4);
+    FizzleFade (baseviewscreenx,baseviewscreeny,baseviewwidth,baseviewheight,70,false);
 
     IN_UserInput(100);
     SD_WaitSoundDone ();

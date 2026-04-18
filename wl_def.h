@@ -957,9 +957,10 @@ extern  char     configname[13];
 extern  fixed    focallength;
 extern  unsigned screenofs;
 extern  int      viewscreenx,viewscreeny;
-extern  int      viewwidth;
-extern  int      viewheight;
+extern  int      viewwidth,viewheight;
 extern  short    centerx,centery;
+extern  int      baseviewscreenx,baseviewscreeny;
+extern  int      baseviewwidth,baseviewheight;
 extern  int      shootdelta;
 
 extern  int      dirangle[9];
@@ -1024,7 +1025,7 @@ void    DrawPlayBorder (void);
 void    DrawStatusBorder (byte color);
 void    DrawPlayScreen (void);
 void    DrawPlayBorderSides (void);
-void    ShowActStatus (void);
+void    ShowStatusBar (void);
 
 void    PlayDemo (int demonumber);
 void    RecordDemo (void);

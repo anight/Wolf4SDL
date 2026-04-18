@@ -265,13 +265,12 @@ void ControlMovement (objtype *ob)
 
 void StatusDrawPic (unsigned x, unsigned y, unsigned picnum)
 {
-    VWB_DrawPicScaledCoord (((screenWidth-scaleFactor*320)/16 + scaleFactor*x) * 8,
-        screenHeight-scaleFactor*(STATUSLINES-y),picnum);
+    VWB_DrawPic (x,basescreenHeight - (STATUSLINES - y),picnum);
 }
 
 void StatusDrawFace(unsigned picnum)
 {
-    StatusDrawPic(17, 4, picnum);
+    StatusDrawPic(136, 4, picnum);
 
 #ifdef _arch_dreamcast
     DC_StatusDrawLCD(picnum);
@@ -365,6 +364,7 @@ void UpdateFace (void)
 
 static void LatchNumber (int x, int y, unsigned width, int32_t number)
 {
+    int     picnum;
     unsigned length,c;
     char    str[20];
 
@@ -375,7 +375,7 @@ static void LatchNumber (int x, int y, unsigned width, int32_t number)
     while (length<width)
     {
         StatusDrawPic (x,y,N_BLANKPIC);
-        x++;
+        x += pictable[N_BLANKPIC - STARTPICS].width;
         width--;
     }
 
@@ -383,8 +383,10 @@ static void LatchNumber (int x, int y, unsigned width, int32_t number)
 
     while (c<length)
     {
-        StatusDrawPic (x,y,str[c]-'0'+ N_0PIC);
-        x++;
+        picnum = str[c]-'0'+ N_0PIC;
+
+        StatusDrawPic (x,y,picnum);
+        x += pictable[picnum - STARTPICS].width;
         c++;
     }
 }
@@ -401,7 +403,7 @@ static void LatchNumber (int x, int y, unsigned width, int32_t number)
 void DrawHealth (void)
 {
     if(viewsize == 21 && ingame) return;
-    LatchNumber (21,16,3,gamestate.health);
+    LatchNumber (168,16,3,gamestate.health);
 }
 
 
@@ -484,10 +486,10 @@ void DrawLevel (void)
     if(viewsize == 21 && ingame) return;
 #ifdef SPEAR
     if (gamestate.mapon == 20)
-        LatchNumber (2,16,2,18);
+        LatchNumber (16,16,2,18);
     else
 #endif
-        LatchNumber (2,16,2,gamestate.mapon+1);
+        LatchNumber (16,16,2,gamestate.mapon+1);
 }
 
 //===========================================================================
@@ -504,7 +506,7 @@ void DrawLevel (void)
 void DrawLives (void)
 {
     if(viewsize == 21 && ingame) return;
-    LatchNumber (14,16,1,gamestate.lives);
+    LatchNumber (112,16,1,gamestate.lives);
 }
 
 
@@ -537,7 +539,7 @@ void GiveExtraMan (void)
 void DrawScore (void)
 {
     if(viewsize == 21 && ingame) return;
-    LatchNumber (6,16,6,gamestate.score);
+    LatchNumber (48,16,6,gamestate.score);
 }
 
 /*
@@ -572,7 +574,7 @@ void GivePoints (int32_t points)
 void DrawWeapon (void)
 {
     if(viewsize == 21 && ingame) return;
-    StatusDrawPic (32,8,KNIFEPIC+gamestate.weapon);
+    StatusDrawPic (256,8,KNIFEPIC+gamestate.weapon);
 }
 
 
@@ -588,14 +590,14 @@ void DrawKeys (void)
 {
     if(viewsize == 21 && ingame) return;
     if (gamestate.keys & 1)
-        StatusDrawPic (30,4,GOLDKEYPIC);
+        StatusDrawPic (240,4,GOLDKEYPIC);
     else
-        StatusDrawPic (30,4,NOKEYPIC);
+        StatusDrawPic (240,4,NOKEYPIC);
 
     if (gamestate.keys & 2)
-        StatusDrawPic (30,20,SILVERKEYPIC);
+        StatusDrawPic (240,20,SILVERKEYPIC);
     else
-        StatusDrawPic (30,20,NOKEYPIC);
+        StatusDrawPic (240,20,NOKEYPIC);
 }
 
 /*
@@ -630,7 +632,7 @@ void GiveWeapon (int weapon)
 void DrawAmmo (void)
 {
     if(viewsize == 21 && ingame) return;
-    LatchNumber (27,16,2,gamestate.ammo);
+    LatchNumber (216,16,2,gamestate.ammo);
 }
 
 /*

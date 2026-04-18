@@ -98,17 +98,6 @@ void VWB_DrawPic (int x, int y, int chunknum)
 	VL_MemToScreen (grsegs[chunknum],width,height,x,y);
 }
 
-void VWB_DrawPicScaledCoord (int scx, int scy, int chunknum)
-{
-	int	picnum = chunknum - STARTPICS;
-	unsigned width,height;
-
-	width = pictable[picnum].width;
-	height = pictable[picnum].height;
-
-    VL_MemToScreenScaledCoord (grsegs[chunknum],width,height,scx,scy);
-}
-
 
 void VWB_Bar (int x, int y, int width, int height, int color)
 {
@@ -117,10 +106,7 @@ void VWB_Bar (int x, int y, int width, int height, int color)
 
 void VWB_Plot (int x, int y, int color)
 {
-    if(scaleFactor == 1)
-        VW_Plot(x,y,color);
-    else
-        VW_Bar(x, y, 1, 1, color);
+    VW_Plot(x,y,color);
 }
 
 void VWB_Hlin (int x1, int x2, int y, int color)
@@ -210,11 +196,16 @@ void VH_Startup()
     rndmask = rndmasks[rndbits - 17];
 }
 
-boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+boolean FizzleFade (int x1, int y1,
     unsigned width, unsigned height, unsigned frames, boolean abortable)
 {
     unsigned x, y, p, frame, pixperframe;
     int32_t  rndval;
+
+    x1 *= scaleFactor;
+    y1 *= scaleFactor;
+    width *= scaleFactor;
+    height *= scaleFactor;
 
     rndval = 1;
     pixperframe = width * height / frames;
@@ -222,7 +213,7 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
     IN_StartAck ();
 
     frame = GetTimeCount();
-    byte *srcptr = VL_LockSurface(source);
+    byte *srcptr = VL_LockSurface(screenBuffer);
     if(srcptr == NULL) return false;
 
     while (1)
@@ -231,8 +222,8 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
 
         if(abortable && IN_CheckAck ())
         {
-            VL_UnlockSurface(source);
-            VH_UpdateScreen (source);
+            VL_UnlockSurface(screenBuffer);
+            VH_UpdateScreen (screenBuffer);
             return true;
         }
 
@@ -264,11 +255,11 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
                 if(screenBits == 8)
                 {
                     *(destptr + (y1 + y) * screen->pitch + x1 + x)
-                        = *(srcptr + (y1 + y) * source->pitch + x1 + x);
+                        = *(srcptr + (y1 + y) * screenBuffer->pitch + x1 + x);
                 }
                 else
                 {
-                    byte col = *(srcptr + (y1 + y) * source->pitch + x1 + x);
+                    byte col = *(srcptr + (y1 + y) * screenBuffer->pitch + x1 + x);
                     uint32_t fullcol = SDL_MapRGBA(screen->format, curpal[col].r, curpal[col].g, curpal[col].b,SDL_ALPHA_OPAQUE);
                     memcpy(destptr + (y1 + y) * screen->pitch + (x1 + x) * screen->format->BytesPerPixel,
                         &fullcol, screen->format->BytesPerPixel);

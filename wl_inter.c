@@ -21,8 +21,8 @@ ClearSplitVWB (void)
 {
     WindowX = 0;
     WindowY = 0;
-    WindowW = 320;
-    WindowH = 160;
+    WindowW = basescreenWidth;
+    WindowH = basescreenHeight - STATUSLINES;
 }
 
 
@@ -144,7 +144,7 @@ Victory (void)
     StartCPMusic (URAHERO_MUS);
     ClearSplitVWB ();
 
-    VWB_Bar (0, 0, 320, screenHeight / scaleFactor - STATUSLINES + 1, VIEWCOLOR);
+    VWB_Bar (0, 0, basescreenWidth, basescreenHeight - STATUSLINES + 1, VIEWCOLOR);
     if (bordercol != VIEWCOLOR)
         DrawStatusBorder (VIEWCOLOR);
 
@@ -531,7 +531,7 @@ LevelCompleted (void)
     };
 
     ClearSplitVWB ();           // set up for double buffering in split screen
-    VWB_Bar (0, 0, 320, screenHeight / scaleFactor - STATUSLINES + 1, VIEWCOLOR);
+    VWB_Bar (0, 0, basescreenWidth, basescreenHeight - STATUSLINES + 1, VIEWCOLOR);
 
     if (bordercol != VIEWCOLOR)
         DrawStatusBorder (VIEWCOLOR);
@@ -914,51 +914,42 @@ done:   itoa (kr, tempstr, 10);
 =================
 */
 
-boolean
-PreloadUpdate (unsigned current, unsigned total)
+boolean PreloadUpdate (unsigned current, unsigned total)
 {
-    unsigned w = WindowW - scaleFactor * 10;
+    unsigned w = WindowW - 10;
 
-    VWB_BarScaledCoord (WindowX + scaleFactor * 5, WindowY + WindowH - scaleFactor * 3,
-        w, scaleFactor * 2, BLACK);
+    VWB_Bar (WindowX + 5,WindowY + WindowH - 3,w,2,BLACK);
+
     w = ((int32_t) w * current) / total;
+
     if (w)
     {
-        VWB_BarScaledCoord (WindowX + scaleFactor * 5, WindowY + WindowH - scaleFactor * 3,
-            w, scaleFactor * 2, 0x37);       //SECONDCOLOR);
-        VWB_BarScaledCoord (WindowX + scaleFactor * 5, WindowY + WindowH - scaleFactor * 3,
-            w - scaleFactor * 1, scaleFactor * 1, 0x32);
+        VWB_Bar (WindowX + 5,WindowY + WindowH - 3,w,2,0x37);       //SECONDCOLOR);
+        VWB_Bar (WindowX + 5,WindowY + WindowH - 3,w - 1,1,0x32);
 
     }
+
     VW_UpdateScreen ();
-//      if (LastScan == sc_Escape)
-//      {
-//              IN_ClearKeysDown();
-//              return(true);
-//      }
-//      else
-    return (false);
+
+    return false;
 }
 
-void
-PreloadGraphics (void)
+void PreloadGraphics (void)
 {
     DrawLevel ();
     ClearSplitVWB ();           // set up for double buffering in split screen
 
-    VWB_BarScaledCoord (0, 0, screenWidth, screenHeight - scaleFactor * (STATUSLINES - 1), bordercol);
-    VWB_DrawPicScaledCoord (((screenWidth-scaleFactor*224)/16) * 8,
-        (screenHeight-scaleFactor*(STATUSLINES+48))/2, GETPSYCHEDPIC);
+    WindowX = (basescreenWidth / 2) - 112;
+    WindowY = (basescreenHeight - (STATUSLINES + 48)) / 2;
+    WindowW = pictable[GETPSYCHEDPIC - STARTPICS].width;
+    WindowH = pictable[GETPSYCHEDPIC - STARTPICS].height;
 
-    WindowX = (screenWidth - scaleFactor*224)/2;
-    WindowY = (screenHeight - scaleFactor*(STATUSLINES+48))/2;
-    WindowW = scaleFactor * 28 * 8;
-    WindowH = scaleFactor * 48;
+    VWB_Bar (0,0,basescreenWidth,basescreenHeight - (STATUSLINES - 1),bordercol);
+    VWB_DrawPic (WindowX,WindowY,GETPSYCHEDPIC);
 
     VW_UpdateScreen ();
     VW_FadeIn ();
 
-//      PM_Preload (PreloadUpdate);
     PreloadUpdate (10, 10);
     IN_UserInput (70);
     VW_FadeOut ();

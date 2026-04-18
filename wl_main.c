@@ -57,10 +57,11 @@ int     dirangle[9] = {0,ANGLES/8,2*ANGLES/8,3*ANGLES/8,4*ANGLES/8,
 //
 fixed    focallength;
 unsigned screenofs;
-int      viewscreenx, viewscreeny;
-int      viewwidth;
-int      viewheight;
+int      viewscreenx,viewscreeny;
+int      viewwidth,viewheight;
 short    centerx,centery;
+int      baseviewscreenx,baseviewscreeny;
+int      baseviewwidth,baseviewheight;
 int      shootdelta;           // pixels away from centerx a target can be
 fixed    scale;
 int32_t  heightnumerator;
@@ -1321,6 +1322,7 @@ boolean SetViewSize (unsigned width, unsigned height)
     centerx = viewwidth/2-1;
     centery = viewheight / 2;
     shootdelta = viewwidth/10;
+
     if (viewheight == screenHeight)
         viewscreenx = viewscreeny = screenofs = 0;
     else
@@ -1329,6 +1331,11 @@ boolean SetViewSize (unsigned width, unsigned height)
         viewscreeny = (screenHeight-scaleFactor*STATUSLINES-viewheight)/2;
         screenofs = viewscreeny*screenWidth+viewscreenx;
     }
+
+    baseviewwidth = (viewwidth / scaleFactor) & ~15;
+    baseviewheight = (viewheight / scaleFactor) & ~1;
+    baseviewscreenx = viewscreenx / scaleFactor;
+    baseviewscreeny = viewscreeny / scaleFactor;
 
 //
 // calculate trace angles and projection constants
@@ -1346,39 +1353,64 @@ void ShowViewSize (int width)
     oldwidth = viewwidth;
     oldheight = viewheight;
 
-    if(width == 21)
+    switch (width)
     {
-        viewwidth = screenWidth;
-        viewheight = screenHeight;
-        VWB_BarScaledCoord (0, 0, screenWidth, screenHeight, 0);
+        case 21:
+            viewwidth = screenWidth;
+            viewheight = screenHeight;
+            break;
+
+        case 20:
+            viewwidth = screenWidth;
+            viewheight = screenHeight - (scaleFactor * STATUSLINES);
+            break;
+
+        default:
+            viewwidth = ((width << 4) * screenWidth) / basescreenWidth;
+            viewheight = ((width << 3) * screenHeight) / basescreenHeight;
+            break;
     }
-    else if(width == 20)
-    {
-        viewwidth = screenWidth;
-        viewheight = screenHeight - scaleFactor*STATUSLINES;
-        DrawPlayBorder ();
-    }
+
+    baseviewwidth = viewwidth / scaleFactor;
+    baseviewheight = viewheight / scaleFactor;
+
+    if (width == 21)
+        VWB_Bar (0,0,baseviewwidth,baseviewheight,0);
     else
-    {
-        viewwidth = width*16*screenWidth/320;
-        viewheight = (int) (width*16*HEIGHTRATIO*screenHeight/200);
         DrawPlayBorder ();
-    }
 
     viewwidth = oldwidth;
     viewheight = oldheight;
+    baseviewwidth = viewwidth / scaleFactor;
+    baseviewheight = viewheight / scaleFactor;
 }
 
 
 void NewViewSize (int width)
 {
+    int newwidth,newheight;
+
     viewsize = width;
-    if(viewsize == 21)
-        SetViewSize(screenWidth, screenHeight);
-    else if(viewsize == 20)
-        SetViewSize(screenWidth, screenHeight - scaleFactor * STATUSLINES);
-    else
-        SetViewSize(width*16*screenWidth/320, (unsigned) (width*16*HEIGHTRATIO*screenHeight/200));
+
+    switch (width)
+    {
+        case 21:
+            newwidth = screenWidth;
+            newheight = screenHeight;
+            break;
+
+        case 20:
+            newwidth = screenWidth;
+            newheight = screenHeight - (scaleFactor * STATUSLINES);
+            break;
+
+        default:
+            newwidth = ((width << 4) * screenWidth) / basescreenWidth;
+            newheight = ((width << 3) * screenHeight) / basescreenHeight;
+            break;
+    }
+
+    SetViewSize (newwidth,newheight);
 }
 
 

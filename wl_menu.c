@@ -2621,8 +2621,8 @@ CP_ChangeView (int blank)
     ControlInfo ci;
 
     WindowX = WindowY = 0;
-    WindowW = 320;
-    WindowH = 200;
+    WindowW = basescreenWidth;
+    WindowH = basescreenHeight;
     newview = oldview = viewsize;
     DrawChangeView (oldview);
     MenuFadeIn ();
@@ -2697,8 +2697,8 @@ CP_ChangeView (int blank)
 void
 DrawChangeView (int view)
 {
-    int rescaledHeight = screenHeight / scaleFactor;
-    if(view != 21) VWB_Bar (0, rescaledHeight - 40, 320, 40, bordercol);
+    if (view != 21)
+        VWB_Bar (0,basescreenHeight - STATUSLINES,basescreenWidth,STATUSLINES,bordercol);
 
 #ifdef JAPAN
     VWB_DrawPic (0,0,S_CHANGEPIC);
@@ -2707,7 +2707,7 @@ DrawChangeView (int view)
 #else
     ShowViewSize (view);
 
-    PrintY = (screenHeight / scaleFactor) - 39;
+    PrintY = basescreenHeight - (STATUSLINES - 1);
     WindowX = 0;
     WindowY = 320;                                  // TODO: Check this!
     SETFONTCOLOR (HIGHLIGHT, BKGDCOLOR);

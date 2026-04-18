@@ -1536,8 +1536,8 @@ void ThreeDRefresh (void)
 
     DrawPlayerWeapon ();    // draw player's hands
 
-    if(Keyboard[sc_Tab] && viewsize == 21 && gamestate.weapon != -1)
-        ShowActStatus();
+    if (Keyboard[sc_Tab] && viewsize == 21 && gamestate.weapon != -1)
+        ShowStatusBar ();
 
     VL_UnlockSurface(screenBuffer);
     vbuf = NULL;
@@ -1548,7 +1548,7 @@ void ThreeDRefresh (void)
 
     if (fizzlein)
     {
-        FizzleFade(screenBuffer, 0, 0, screenWidth, screenHeight, 20, false);
+        FizzleFade (0,0,basescreenWidth,basescreenHeight,20,false);
         fizzlein = false;
 
         lasttimecount = GetTimeCount();          // don't make a big tic count

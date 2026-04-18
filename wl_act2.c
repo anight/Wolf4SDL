@@ -3803,6 +3803,7 @@ boolean CheckPosition (objtype *ob)
 
 void    A_StartDeathCam (objtype *ob)
 {
+    int     fadeheight;
     int32_t dx,dy;
     float   fangle;
     int32_t xmove,ymove;
@@ -3819,9 +3820,14 @@ void    A_StartDeathCam (objtype *ob)
     }
 
     gamestate.victoryflag = true;
-    unsigned fadeheight = viewsize != 21 ? screenHeight-scaleFactor*STATUSLINES : screenHeight;
-    VL_BarScaledCoord (0, 0, screenWidth, fadeheight, bordercol);
-    FizzleFade(screenBuffer, 0, 0, screenWidth, fadeheight, 70, false);
+
+    fadeheight = basescreenHeight;
+
+    if (viewsize != 21)
+        fadeheight -= STATUSLINES;
+
+    VL_Bar (0,0,basescreenWidth,fadeheight,bordercol);
+    FizzleFade (0,0,basescreenWidth,fadeheight,70,false);
 
     if (bordercol != VIEWCOLOR)
     {

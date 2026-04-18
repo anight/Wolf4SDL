@@ -55,16 +55,11 @@ void VWB_DrawTile8M (int x, int y, int tile);
 void VWB_DrawTile16 (int x, int y, int tile);
 void VWB_DrawTile16M (int x, int y, int tile);
 void VWB_DrawPic (int x, int y, int chunknum);
-void VWB_DrawPicScaledCoord (int x, int y, int chunknum);
 void VWB_DrawMPic(int x, int y, int chunknum);
 void VWB_Bar (int x, int y, int width, int height, int color);
-#define VWB_BarScaledCoord VL_BarScaledCoord
 void VWB_Plot (int x, int y, int color);
-#define VWB_PlotScaledCoord VW_Plot
 void VWB_Hlin (int x1, int x2, int y, int color);
 void VWB_Vlin (int y1, int y2, int x, int color);
-#define VWB_HlinScaledCoord VW_Hlin
-#define VWB_VlinScaledCoord VW_Vlin
 
 void VH_UpdateScreen (SDL_Surface *surface);
 #define VW_UpdateScreen()   VH_UpdateScreen (screenBuffer)
@@ -87,7 +82,7 @@ void VH_UpdateScreen (SDL_Surface *surface);
 void	VW_MeasurePropString (const char *string, word *width, word *height);
 
 void    VH_Startup();
-boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+boolean FizzleFade (int x1, int y1,
     unsigned width, unsigned height, unsigned frames, boolean abortable);
 
 #endif
