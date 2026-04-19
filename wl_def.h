@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <libgen.h>
 #if defined(_arch_dreamcast)
 #	include <string.h>
 #	include "dc/dc_main.h"

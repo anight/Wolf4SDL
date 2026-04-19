@@ -1051,7 +1051,7 @@ void FinishDemoRecord (void)
         }
     }
 
-    free(demobuffer);
+    SafeFree (demobuffer);
 }
 
 //==========================================================================
@@ -1188,7 +1188,7 @@ void PlayDemo (int demonumber)
     PlayLoop ();
 
 #ifndef DEMOSEXTERN
-    free (demobuffer);
+    SafeFree (demobuffer);
 #endif
 
     demoplayback = false;

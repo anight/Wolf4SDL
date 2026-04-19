@@ -510,7 +510,7 @@ void CAL_SetupGrFile (void)
     compseg = SafeMalloc(chunkcomplen);
     fread (compseg,chunkcomplen,1,file);
     CAL_HuffExpand(compseg, (byte*)pictable, NUMPICS * sizeof(*pictable), grhuffman);
-    free(compseg);
+    SafeFree (compseg);
 
     CA_CacheGrChunks (file);
 
@@ -658,44 +658,34 @@ void CA_Shutdown (void)
     if (audiofile)
         fclose (audiofile);
 
-    for (i=0; i<NUMCHUNKS; i++)
-    {
-        free (grsegs[i]);
-        grsegs[i] = NULL;
-    }
-
-    free (pictable);
-    pictable = NULL;
+    for (i = 0; i < NUMCHUNKS; i++)
+        SafeFree (grsegs[i]);
 
     for (i = 0; i < NUMMAPS; i++)
-    {
-        free (mapheaderseg[i]);
-        mapheaderseg[i] = NULL;
-    }
+        SafeFree (mapheaderseg[i]);
 
     for (i = 0; i < MAPPLANES; i++)
+        SafeFree (mapsegs[i]);
+
+    SafeFree (pictable);
+    SafeFree (tinf);
+
+    if (oldsoundmode != sdm_Off)
     {
-        free (mapsegs[i]);
-        mapsegs[i] = NULL;
+        switch (oldsoundmode)
+        {
+            case sdm_PC:
+                start = STARTPCSOUNDS;
+                break;
+
+            case sdm_AdLib:
+                start = STARTADLIBSOUNDS;
+                break;
+        }
+
+        for (i = 0; i < NUMSOUNDS; i++, start++)
+            SafeFree (audiosegs[start]);
     }
-
-    free (tinf);
-    tinf = NULL;
-
-    switch(oldsoundmode)
-    {
-        case sdm_Off:
-            return;
-        case sdm_PC:
-            start = STARTPCSOUNDS;
-            break;
-        case sdm_AdLib:
-            start = STARTADLIBSOUNDS;
-            break;
-    }
-
-    for(i=0; i<NUMSOUNDS; i++,start++)
-        UNCACHEAUDIOCHUNK(start);
 }
 
 //===========================================================================
@@ -726,6 +716,7 @@ int32_t CA_CacheAudioChunk (int chunk)
 
 void CA_CacheAdlibSoundChunk (int chunk)
 {
+    AdLibSound *sound;
     byte    *bufferseg;
     byte    *ptr;
     int32_t pos = audiostarts[chunk];
@@ -741,7 +732,8 @@ void CA_CacheAdlibSoundChunk (int chunk)
 
     fread (ptr,ORIG_ADLIBSOUND_SIZE - 1,1,audiofile);   // without data[1]
 
-    AdLibSound *sound = SafeMalloc(size + sizeof(*sound) - ORIG_ADLIBSOUND_SIZE);
+    audiosegs[chunk] = SafeMalloc(size + sizeof(*sound) - ORIG_ADLIBSOUND_SIZE);
+    sound = (AdLibSound *)audiosegs[chunk];
 
     sound->common.length = ReadLong(ptr);
     ptr += 4;
@@ -769,9 +761,7 @@ void CA_CacheAdlibSoundChunk (int chunk)
 
     fread (sound->data,size - ORIG_ADLIBSOUND_SIZE + 1,1,audiofile);  // + 1 because of byte data[1]
 
-    audiosegs[chunk]=(byte *) sound;
-
-    free (bufferseg);
+    SafeFree (bufferseg);
 }
 
 //===========================================================================
@@ -802,8 +792,8 @@ void CA_LoadAllSounds (void)
                 break;
         }
 
-        for (i=0;i<NUMSOUNDS;i++,start++)
-            UNCACHEAUDIOCHUNK(start);
+        for (i = 0; i < NUMSOUNDS; i++, start++)
+            SafeFree (audiosegs[start]);
     }
 
     oldsoundmode = SoundMode;
@@ -846,7 +836,7 @@ void CA_LoadAllSounds (void)
 ======================
 */
 
-void CAL_ExpandGrChunk (int chunk, int32_t *source)
+void CAL_ExpandGrChunk (int chunk, byte *source)
 {
     int32_t    expanded;
 
@@ -877,7 +867,8 @@ void CAL_ExpandGrChunk (int chunk, int32_t *source)
         //
         // everything else has an explicit size longword
         //
-        expanded = *source++;
+        expanded = ReadLong(source);
+        source += sizeof(expanded);
     }
 
     //
@@ -885,7 +876,7 @@ void CAL_ExpandGrChunk (int chunk, int32_t *source)
     //
     grsegs[chunk] = SafeMalloc(expanded);
 
-    CAL_HuffExpand((byte *) source, grsegs[chunk], expanded, grhuffman);
+    CAL_HuffExpand (source,grsegs[chunk],expanded,grhuffman);
 }
 
 
@@ -931,9 +922,8 @@ void CAL_DeplaneGrChunk (int chunk)
 
 void CA_CacheGrChunks (FILE *grfile)
 {
+    byte    *source = NULL;
     int32_t pos,compressed;
-    int32_t *bufferseg;
-    int32_t *source;
     int     chunk,next;
 
     for (chunk = STRUCTPIC + 1; chunk < NUMCHUNKS; chunk++)
@@ -958,18 +948,16 @@ void CA_CacheGrChunks (FILE *grfile)
 
         fseek (grfile,pos,SEEK_SET);
 
-        bufferseg = SafeMalloc(compressed);
-        source = bufferseg;
-
+        source = SafeRealloc(source,compressed);
         fread (source,compressed,1,grfile);
 
         CAL_ExpandGrChunk (chunk,source);
 
         if (chunk >= STARTPICS && chunk < STARTEXTERNS)
             CAL_DeplaneGrChunk (chunk);
-
-        free(bufferseg);
     }
+
+    SafeFree (source);
 }
 
 
@@ -993,14 +981,9 @@ void CA_CacheMap (int mapnum)
     char     fname[13];
     int32_t  pos,compressed;
     int      plane;
-    word     *dest;
-    unsigned size;
-    word     *bufferseg;
-    word     *source;
-#ifdef CARMACIZED
-    word     *buffer2seg;
+    word     *source = NULL;
+    word     *rlewtable = NULL;
     int32_t  expanded;
-#endif
 
     if (mapheaderseg[mapnum]->width != MAPSIZE || mapheaderseg[mapnum]->height != MAPSIZE)
         Quit ("CA_CacheMap: Map not %u*%u!",MAPSIZE,MAPSIZE);
@@ -1015,46 +998,42 @@ void CA_CacheMap (int mapnum)
 //
 // load the planes into the allready allocated buffers
 //
-    size = MAPAREA * sizeof(*dest);
-
-    for (plane = 0; plane<MAPPLANES; plane++)
+    for (plane = 0; plane < MAPPLANES; plane++)
     {
         pos = mapheaderseg[mapnum]->planestart[plane];
         compressed = mapheaderseg[mapnum]->planelength[plane];
 
-	if (!compressed)
-	    continue;    // empty plane
-
-        dest = mapsegs[plane];
+        if (!compressed)
+            continue;    // empty plane
 
         fseek (file,pos,SEEK_SET);
 
-        bufferseg = SafeMalloc(compressed);
-        source = bufferseg;
-
+        source = SafeRealloc(source,compressed);
         fread (source,compressed,1,file);
 #ifdef CARMACIZED
         //
-        // unhuffman, then unRLEW
-        // The huffman'd chunk has a two byte expanded length first
-        // The resulting RLEW chunk also does, even though it's not really
-        // needed
+        // decarmackize, then unRLEW
+        // Both chunks have a two byte expanded length first
         //
         expanded = *source;
-        source++;
-        buffer2seg = SafeMalloc(expanded);
-        CAL_CarmackExpand((byte *) source, buffer2seg,expanded);
-        CA_RLEWexpand(buffer2seg+1,dest,size,tinf->RLEWtag);
-        free(buffer2seg);
+        rlewtable = SafeRealloc(rlewtable,expanded);
+        CAL_CarmackExpand ((byte *)(source + 1),rlewtable,expanded);
 
+        expanded = *rlewtable;
+        CA_RLEWexpand (rlewtable + 1,mapsegs[plane],expanded,tinf->RLEWtag);
 #else
         //
-        // unRLEW, skipping expanded length
+        // unRLEW
         //
-        CA_RLEWexpand (source+1,dest,size,tinf->RLEWtag);
+        expanded = *source;
+        CA_RLEWexpand (source + 1,mapsegs[plane],expanded,tinf->RLEWtag);
 #endif
-        free(bufferseg);
     }
+
+    SafeFree (source);
+    SafeFree (rlewtable);
+
+    fclose (file);
 }
 
 //===========================================================================

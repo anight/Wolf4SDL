@@ -146,7 +146,8 @@ US_Print(const char *sorg)
 		else
 			PrintX += w;
 	}
-	free(sstart);
+
+	SafeFree (sstart);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -265,7 +266,8 @@ US_CPrint(const char *sorg)
 			s++;
 		}
 	}
-	free(sstart);
+
+	SafeFree (sstart);
 }
 
 ///////////////////////////////////////////////////////////////////////////

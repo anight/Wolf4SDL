@@ -3638,7 +3638,7 @@ StartCPMusic (int song)
 
     lastmusic = song;
     lastoffs = SD_MusicOff ();
-    UNCACHEAUDIOCHUNK (STARTMUSIC + lastmusic);
+    FreeMusic ();
 
     SD_StartMusic(STARTMUSIC + song);
     return lastoffs;
@@ -3647,7 +3647,7 @@ StartCPMusic (int song)
 void
 FreeMusic (void)
 {
-    UNCACHEAUDIOCHUNK (STARTMUSIC + lastmusic);
+    SafeFree (audiosegs[STARTMUSIC + lastmusic]);
 }
 
 

@@ -900,7 +900,7 @@ int StopMusic (void)
 {
     int lastoffs = SD_MusicOff ();
 
-    UNCACHEAUDIOCHUNK (STARTMUSIC + lastmusicchunk);
+    SafeFree (audiosegs[STARTMUSIC + lastmusicchunk]);
 
     return lastoffs;
 }

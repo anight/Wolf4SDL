@@ -79,7 +79,7 @@ void PM_Startup (void)
             continue;           // sparse page
 
         if (pageOffsets[i] < pageOffsets[0] || pageOffsets[i] >= (size_t)filesize)
-            Quit ("PM_Startup: Illegal page offset for page %i: %u (filesize: %u)",i,pageOffsets[i],filesize);
+            Quit ("PM_Startup: Illegal page offset for page %d: %u (filesize: %u)",i,pageOffsets[i],filesize);
     }
 
     //
@@ -156,7 +156,7 @@ void PM_Startup (void)
     //
     PMPages[ChunksInFile] = page;
 
-    free (pageOffsets);
+    SafeFree (pageOffsets);
 
     fclose (file);
 }
@@ -172,13 +172,9 @@ void PM_Startup (void)
 
 void PM_Shutdown (void)
 {
-    free (pageLengths);
-    free (PMPages);
-    free (PMPageData);
-
-    pageLengths = NULL;
-    PMPages = NULL;
-    PMPageData = NULL;
+    SafeFree (pageLengths);
+    SafeFree (PMPages);
+    SafeFree (PMPageData);
 }
 
 
@@ -192,10 +188,10 @@ void PM_Shutdown (void)
 
 uint32_t PM_GetPageSize (int page)
 {
-    if (page < 0 || page >= ChunksInFile)
-        Quit ("PM_GetPageSize: Invalid page request: %i",page);
+    if ((unsigned)page >= ChunksInFile)
+        Quit ("PM_GetPageSize: Invalid page request: %d",page);
 
-    return (uint32_t)(PMPages[page + 1] - PMPages[page]);
+    return (uint32_t)PMPages[page + 1] - (uint32_t)PMPages[page];
 }
 
 
@@ -211,8 +207,8 @@ uint32_t PM_GetPageSize (int page)
 
 byte *PM_GetPage (int page)
 {
-    if (page < 0 || page >= ChunksInFile)
-        Quit ("PM_GetPage: Invalid page request: %i",page);
+    if ((unsigned)page >= ChunksInFile)
+        Quit ("PM_GetPage: Invalid page request: %d",page);
 
     return PMPages[page];
 }

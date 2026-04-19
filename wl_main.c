@@ -1798,7 +1798,7 @@ void CheckParameters(int argc, char *argv[])
 
         Error (helpstr);
 
-        free (helpstr);
+        SafeFree (helpstr);
 
         exit(1);
     }

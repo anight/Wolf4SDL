@@ -20,9 +20,58 @@ void *safe_malloc (size_t size, const char *fname, uint32_t line)
     ptr = malloc(size);
 
     if (!ptr)
-        Quit ("SafeMalloc: Out of memory at %s: line %u",fname,line);
+    {
+        snprintf (str,sizeof(str),"%s",fname);
+        Quit ("SafeMalloc: Error allocating %u bytes: %s\nFile: %s Line %u",size,strerror(errno),basename(str),line);
+    }
 
     return ptr;
+}
+
+
+/*
+===================
+=
+= safe_realloc
+=
+= Wrapper for realloc with a NULL check
+=
+===================
+*/
+
+void *safe_realloc (void *mem, size_t size, const char *fname, uint32_t line)
+{
+    void *ptr;
+
+    ptr = realloc(mem,size);
+
+    if (!ptr)
+    {
+        snprintf (str,sizeof(str),"%s",fname);
+        Quit ("SafeRealloc: Error re-allocating %u bytes: %s\nFile: %s Line: %u Address: %p",size,strerror(errno),basename(str),line,mem);
+    }
+
+    return ptr;
+}
+
+
+/*
+===================
+=
+= safe_free
+=
+= Wrapper for free with pointer nullification
+=
+===================
+*/
+
+void safe_free (void **ptr)
+{
+    if (ptr && *ptr)
+    {
+        free (*ptr);
+        *ptr = NULL;
+    }
 }
 
 

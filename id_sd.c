@@ -447,7 +447,7 @@ void SD_PrepareSound(int which)
 
     SoundChunks[which] = Mix_LoadWAV_RW(temp, 1);
 
-    free(wavebuffer);
+    SafeFree (wavebuffer);
 }
 
 int SD_PlayDigitized(word which,int leftpos,int rightpos)
@@ -959,11 +959,14 @@ SD_Shutdown(void)
 
     for(i = 0; i < STARTMUSIC - STARTDIGISOUNDS; i++)
     {
-        if(SoundChunks[i]) Mix_FreeChunk(SoundChunks[i]);
+        if (SoundChunks[i])
+        {
+            Mix_FreeChunk (SoundChunks[i]);
+            SoundChunks[i] = NULL;
+        }
     }
 
-    free (DigiList);
-    DigiList = NULL;
+    SafeFree (DigiList);
 
     SD_Started = false;
 }

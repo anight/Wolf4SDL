@@ -94,18 +94,16 @@ void VW_Shutdown (void)
     SDL_DestroyWindow(window);
     SDL_DestroyTexture(texture);
 
-    free (ylookup);
-    free (pixelangle);
-    free (wallheight);
+    SafeFree (ylookup);
+    SafeFree (pixelangle);
+    SafeFree (wallheight);
 #if defined(USE_FLOORCEILINGTEX) || defined(USE_CLOUDSKY)
-    free (spanstart);
-
-    spanstart = NULL;
+    SafeFree (spanstart);
 #endif
     screenBuffer = NULL;
-    ylookup = NULL;
-    pixelangle = NULL;
-    wallheight = NULL;
+    renderer = NULL;
+    window = NULL;
+    texture = NULL;
 }
 
 
@@ -641,7 +639,7 @@ void VW_DePlaneVGA (byte *source, int width, int height)
 //
     memcpy (source,temp,size);
 
-    free (temp);
+    SafeFree (temp);
 }
 
 

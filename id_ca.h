@@ -6,8 +6,6 @@
 #define NUMMAPS         60
 #define MAPPLANES       3
 
-#define UNCACHEAUDIOCHUNK(chunk) {if(audiosegs[chunk]) {free(audiosegs[chunk]); audiosegs[chunk]=NULL;}}
-
 //===========================================================================
 
 typedef struct

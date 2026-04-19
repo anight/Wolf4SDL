@@ -770,7 +770,7 @@ void HelpScreens (void)
     ShowArticle (text);
 
 #ifndef ARTSEXTERN
-    free(layout);
+    SafeFree (layout);
 #endif
 
     VW_FadeOut();
@@ -819,7 +819,7 @@ void EndText (void)
     ShowArticle (text);
 
 #ifndef ARTSEXTERN
-    free(layout);
+    SafeFree (layout);
 #endif
 
 
