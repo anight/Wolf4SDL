@@ -14,40 +14,27 @@
 #define assert_ret(x) assert(x)
 #endif
 
-boolean  fullscreen = true;
-#if defined(_arch_dreamcast)
-int16_t  screenWidth = 320;
-int16_t  screenHeight = 200;
-int      screenBits = 8;
-#elif defined(GP2X)
-int16_t  screenWidth = 320;
-int16_t  screenHeight = 240;
-#if defined(GP2X_940)
-int      screenBits = 8;
-#else
-int      screenBits = 16;
+#ifdef NOTYET
+    //
+    // KS: need to find out how to support these
+    // with the new code
+    //
+    #if defined(_arch_dreamcast)
+    int      screenWidth = 320;
+    int      screenHeight = 200;
+    int      screenBits = 8;
+    #elif defined(GP2X)
+    int      screenWidth = 320;
+    int      screenHeight = 240;
+        #if defined(GP2X_940)
+        int      screenBits = 8;
+        #else
+        int      screenBits = 16;
+        #endif
+    #endif
 #endif
-#else
-int16_t  screenWidth = 640;
-int16_t  screenHeight = 400;
-int      screenBits = -1;      // use "best" color depth according to libSDL
-#endif
 
-SDL_Surface *screen = NULL;
-unsigned screenPitch;
-
-SDL_Surface *screenBuffer = NULL;
-unsigned bufferPitch;
-
-SDL_Window *window = NULL;
-SDL_Renderer *renderer = NULL;
-SDL_Texture *texture = NULL;
-
-int      scaleFactor;
-int      basescreenWidth;
-int      basescreenHeight;
-
-boolean	 screenfaded;
+screen_t screen;
 unsigned bordercolor;
 
 pictabletype	*pictable;
@@ -81,105 +68,324 @@ CASSERT(lengthof(gamepal) == 256)
 /*
 =======================
 =
-= VW_Shutdown
+= VW_Startup
 =
 =======================
 */
 
-void VW_Shutdown (void)
+void VW_Startup (void)
 {
-    SDL_FreeSurface (screenBuffer);
+    int      x,y;
+    int      w,h;
+    uint32_t flags = 0;
 
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_DestroyTexture(texture);
+    if (screen.flags & SC_FULLSCREEN)
+        flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    else
+    {
+        if (screen.flags & SC_INPUTGRABBED)
+            flags |= SDL_WINDOW_INPUT_GRABBED;
+    }
+
+    flags |= SDL_WINDOW_RESIZABLE;
+    x = SDL_WINDOWPOS_CENTERED;
+    y = SDL_WINDOWPOS_CENTERED;
+    w = screen.width;
+    h = screen.height;
+#ifdef SPEAR
+    screen.title = "Spear of Destiny";
+#else
+    screen.title = "Wolfenstein 3D";
+#endif
+    screen.window = SDL_CreateWindow(screen.title,x,y,w,h,flags);
+
+    if (!screen.window)
+        Quit ("Unable to create window: %s\n",SDL_GetError());
+
+    VW_SetupVideo ();
+    VW_InitRndMask ();
+}
+
+
+/*
+===================
+=
+= VW_ClearTexture
+=
+= Deallocate the rendering texture and its
+= associated surfaces
+=
+===================
+*/
+
+void VW_ClearTexture (void)
+{
+    SDL_DestroyTexture (screen.texture);
+    screen.texture = NULL;
+
+    SDL_FreeSurface (screen.surface);
+    screen.surface = NULL;
+
+    SDL_FreeSurface (screen.buffer);
+    screen.buffer = NULL;
 
     SafeFree (ylookup);
-    SafeFree (pixelangle);
-    SafeFree (wallheight);
-#if defined(USE_FLOORCEILINGTEX) || defined(USE_CLOUDSKY)
-    SafeFree (spanstart);
-#endif
-    screenBuffer = NULL;
-    renderer = NULL;
-    window = NULL;
-    texture = NULL;
 }
 
 
 /*
 =======================
 =
-= VW_SetVGAPlaneMode
+= VW_Shutdown
+=
+= Deallocate everything
 =
 =======================
 */
 
-void VW_SetVGAPlaneMode (void)
+void VW_Shutdown (void)
 {
-    int i;
-    uint32_t a,r,g,b;
+    VW_ClearTexture ();
 
-#ifdef SPEAR
-    const char* title = "Spear of Destiny";
-#else
-    const char* title = "Wolfenstein 3D";
-#endif
-    window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, screenWidth, screenHeight,
-        (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) | SDL_WINDOW_OPENGL);
+    SDL_DestroyRenderer (screen.renderer);
+    screen.renderer = NULL;
 
-    SDL_PixelFormatEnumToMasks (SDL_PIXELFORMAT_ARGB8888,&screenBits,&r,&g,&b,&a);
-
-    screen = SDL_CreateRGBSurface(0,screenWidth,screenHeight,screenBits,r,g,b,a);
-
-    if(!screen)
-    {
-        printf("Unable to set %ix%ix%i video mode: %s\n", screenWidth, screenHeight, screenBits, SDL_GetError());
-        exit(1);
-    }
-
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-
-    SDL_ShowCursor(SDL_DISABLE);
-
-    SDL_SetPaletteColors(screen->format->palette, gamepal, 0, 256);
-    memcpy(curpal, gamepal, sizeof(SDL_Color) * 256);
-
-    screenBuffer = SDL_CreateRGBSurface(0, screenWidth,
-        screenHeight, 8, 0, 0, 0, 0);
-    if(!screenBuffer)
-    {
-        printf("Unable to create screen buffer surface: %s\n", SDL_GetError());
-        exit(1);
-    }
-    SDL_SetPaletteColors(screenBuffer->format->palette, gamepal, 0, 256);
-
-    texture = SDL_CreateTexture(renderer,
-        SDL_PIXELFORMAT_ARGB8888,
-        SDL_TEXTUREACCESS_STREAMING,
-        screenWidth, screenHeight);
-
-    screenPitch = screen->pitch;
-    bufferPitch = screenBuffer->pitch;
-
-    scaleFactor = screenWidth/320;
-    if(screenHeight/200 < scaleFactor) scaleFactor = screenHeight/200;
-
-    basescreenWidth = screenWidth / scaleFactor;
-    basescreenHeight = screenHeight / scaleFactor;
-
-    ylookup = SafeMalloc(screenHeight * sizeof(*ylookup));
-    pixelangle = SafeMalloc(screenWidth * sizeof(*pixelangle));
-    wallheight = SafeMalloc(screenWidth * sizeof(*wallheight));
-#if defined(USE_FLOORCEILINGTEX) || defined(USE_CLOUDSKY)
-    spanstart = SafeMalloc((screenHeight / 2) * sizeof(*spanstart));
-#endif
-
-    for (i = 0; i < screenHeight; i++)
-        ylookup[i] = i * bufferPitch;
+    SDL_DestroyWindow (screen.window);
+    screen.window = NULL;
 }
+
+
+/*
+=======================
+=
+= VW_SetupVideo
+=
+=======================
+*/
+
+void VW_SetupVideo (void)
+{
+    int      i;
+    int      w,h;
+    uint32_t a,r,g,b;
+    uint32_t flags = 0;
+
+    w = screen.width;
+    h = screen.height;
+
+    if (!screen.renderer)
+    {
+        if (!(screen.flags & SC_HWACCEL))
+            flags |= SDL_RENDERER_SOFTWARE;
+        else
+        {
+            flags |= SDL_RENDERER_ACCELERATED;
+
+            if (screen.flags & SC_VSYNC)
+                flags |= SDL_RENDERER_PRESENTVSYNC;
+        }
+
+        screen.renderer = SDL_CreateRenderer(screen.window,-1,flags);
+
+        if (!screen.renderer)
+            Quit ("Unable to create renderer: %s\n",SDL_GetError());
+
+        VW_SetViewport (w,h);
+
+        SDL_RenderSetVSync (screen.renderer,(screen.flags & SC_VSYNC) != 0);
+    }
+
+    SDL_PixelFormatEnumToMasks (SDL_PIXELFORMAT_ARGB8888,&screen.bits,&r,&g,&b,&a);
+
+    screen.surface = SDL_CreateRGBSurface(0,w,h,screen.bits,r,g,b,a);
+
+    if (!screen.surface)
+        Quit ("Unable to create %dx%dx%d surface: %s\n",w,h,screen.bits,SDL_GetError());
+
+    screen.texture = SDL_CreateTexture(screen.renderer,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STATIC,w,h);
+
+    if (!screen.texture)
+        Quit ("Unable to create texture: %s\n",SDL_GetError());
+
+    //
+    // create 8 bit screen buffer for drawing
+    //
+    screen.buffer = SDL_CreateRGBSurface(0,w,h,8,0,0,0,0);
+
+    if (!screen.buffer)
+        Quit ("Unable to create screen buffer surface: %s\n",SDL_GetError());
+
+    VW_SetPalette (gamepal,false);
+
+    ylookup = SafeMalloc(screen.height * sizeof(*ylookup));
+
+    for (i = 0; i < screen.height; i++)
+        ylookup[i] = i * screen.buffer->pitch;
+
+    screen.scale = w / 320;
+    screen.basewidth = w / screen.scale;
+    screen.baseheight = h / screen.scale;
+    screen.heightoffset = (screen.baseheight % 200) / 2;
+
+    VW_SetBufferOffset (screen.heightoffset);
+
+    SDL_SetWindowMinimumSize (screen.window,screen.basewidth,screen.baseheight);
+}
+
+
+/*
+===================
+=
+= VW_ChangeDisplay
+=
+===================
+*/
+
+void VW_ChangeDisplay (screen_t *scr)
+{
+    VW_ClearScreen (BLACK);
+    VW_UpdateScreen ();
+
+    VW_ChangeWindow (scr);
+
+    if (scr->scale != screen.scale || scr->width != screen.width || scr->height != screen.height)
+    {
+        //
+        // update screen variables and re-allocate everything
+        //
+        screen.width = scr->width;
+        screen.height = scr->height;
+
+        Shutdown3DRenderer ();
+        VW_ClearTexture ();
+
+        VW_SetupVideo ();
+        VW_InitRndMask ();
+        Init3DRenderer ();
+    }
+}
+
+
+/*
+===================
+=
+= VW_ChangeWindow
+=
+= Change the current window resolution and/or
+= go to/from fullscreen
+=
+===================
+*/
+
+void VW_ChangeWindow (screen_t *scr)
+{
+    uint32_t        flags;
+    SDL_DisplayMode dm;
+
+    flags = SDL_GetWindowFlags(screen.window);
+
+    if (screen.flags & SC_FULLSCREEN)
+    {
+        if (scr->scale != screen.scale || scr->width != screen.width || scr->height != screen.height)
+        {
+            if (SDL_GetWindowDisplayMode(screen.window,&dm))
+                Quit ("Unable to get display mode: %s\n",SDL_GetError());
+
+            dm.w = scr->width;
+            dm.h = scr->height;
+
+            if (SDL_SetWindowDisplayMode(screen.window,&dm))
+                Quit ("Unable to set display mode: %s\n",SDL_GetError());
+        }
+
+        if (!(flags & SDL_WINDOW_FULLSCREEN))
+        {
+            if (SDL_SetWindowFullscreen(screen.window,SDL_WINDOW_FULLSCREEN_DESKTOP))
+                Quit ("Unable to set fullscreen mode: %s\n",SDL_GetError());
+        }
+    }
+    else
+    {
+        if (flags & SDL_WINDOW_FULLSCREEN)
+        {
+            if (SDL_SetWindowFullscreen(screen.window,0))
+                Quit ("Unable to set windowed mode: %s\n",SDL_GetError());
+        }
+
+        //
+        // KS: there's a weird bug here where switching back from 320x240
+        // to 320x200 will not resize the window height - it stays at 240 and
+        // scales up the screen. None of the other resolutions do this, but I
+        // can't find out why it happens...
+        //
+        SDL_SetWindowSize (screen.window,scr->width,scr->height);
+        SDL_SetWindowPosition (screen.window,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
+    }
+
+    VW_SetViewport (scr->width,scr->height);
+}
+
+
+/*
+=================
+=
+= VW_SetViewport
+=
+= If the window resolution is larger than the desktop resolution,
+= the viewport dimensions are adjusted to avoid going off the screen
+=
+=================
+*/
+
+void VW_SetViewport (int width, int height)
+{
+    int             vpwidth,vpheight;
+    SDL_Rect        viewport;
+    SDL_DisplayMode dm;
+
+    SDL_RenderSetLogicalSize (screen.renderer,width,height);
+
+    if (!(screen.flags & SC_FULLSCREEN))
+    {
+        if (SDL_GetDesktopDisplayMode(0,&dm))
+            Quit ("Unable to get desktop display mode: %s\n",SDL_GetError());
+
+        vpwidth = dm.w;
+        vpheight = dm.h;
+
+        if (width > vpwidth || height > vpheight)
+        {
+            if (width > vpwidth)
+            {
+                viewport.x = (width - vpwidth) / 2;
+                viewport.w = vpwidth;
+            }
+            else
+            {
+                viewport.x = 0;
+                viewport.w = width;
+            }
+
+            if (height > vpheight)
+            {
+                viewport.y = (height - vpheight) / 2;
+                viewport.h = vpheight;
+            }
+            else
+            {
+                viewport.y = 0;
+                viewport.h = height;
+            }
+
+            SDL_RenderSetViewport (screen.renderer,&viewport);
+
+            return;
+        }
+    }
+
+    SDL_RenderSetViewport (screen.renderer,NULL);
+}
+
 
 /*
 =============================================================================
@@ -268,11 +474,11 @@ void VW_SetPalette (SDL_Color *palette, bool forceupdate)
 {
     memcpy(curpal, palette, sizeof(SDL_Color) * 256);
 
-    if(screenBits == 8)
-        SDL_SetPaletteColors(screen->format->palette, palette, 0, 256);
+    if (screen.bits == 8)
+        SDL_SetPaletteColors(screen.surface->format->palette, palette, 0, 256);
     else
     {
-        SDL_SetPaletteColors(screenBuffer->format->palette, palette, 0, 256);
+        SDL_SetPaletteColors(screen.buffer->format->palette, palette, 0, 256);
         if (forceupdate)
             VW_UpdateScreen ();
     }
@@ -352,7 +558,7 @@ void VW_FadePaletteOut (int red, int green, int blue, int steps)
 //
 	VW_FillPalette (red,green,blue);
 
-	screenfaded = true;
+	screen.flags |= SC_FADED;
 }
 
 
@@ -396,7 +602,8 @@ void VW_FadePaletteIn (SDL_Color *palette, int steps)
 // final color
 //
 	VW_SetPalette (palette, true);
-	screenfaded = false;
+
+	screen.flags &= ~SC_FADED;
 }
 
 
@@ -408,7 +615,7 @@ void VW_FadePaletteIn (SDL_Color *palette, int steps)
 =============================================================================
 */
 
-byte *VW_LockSurface (SDL_Surface *surface)
+void *VW_LockSurface (SDL_Surface *surface)
 {
     if (SDL_MUSTLOCK(surface))
     {
@@ -416,13 +623,35 @@ byte *VW_LockSurface (SDL_Surface *surface)
             return NULL;
     }
 
-    return (byte *)surface->pixels;
+    return surface->pixels;
 }
 
 void VW_UnlockSurface (SDL_Surface *surface)
 {
     if (SDL_MUSTLOCK(surface))
         SDL_UnlockSurface (surface);
+}
+
+
+/*
+=================
+=
+= VW_SetBufferOffset
+=
+= Set the offset in the screen buffer to start drawing
+=
+= The offset MUST be 0 while in the 3D renderer!
+=
+=================
+*/
+
+void VW_SetBufferOffset (unsigned offset)
+{
+    offset *= screen.scale;
+
+	assert (offset < screen.height && "VW_SetBufferOffset: Invalid buffer offset!");
+
+    screen.bufferofs = ylookup[offset];
 }
 
 
@@ -453,18 +682,18 @@ byte VW_GetPixel (int x, int y)
     byte *source;
     int  pixel;
 
-    assert_ret(x >= 0 && x < screenWidth
-            && y >= 0 && y < screenHeight
+    assert_ret(x >= 0 && x < screen.width
+            && y >= 0 && y < screen.height
             && "VW_GetPixel: Pixel out of bounds!");
 
-    source = VW_LockSurface(screenBuffer);
+    source = VW_LockSurface(screen.buffer);
 
     if (source == NULL)
         return 0;
 
-    pixel = source[ylookup[y] + x];
+    pixel = source[screen.bufferofs + ylookup[y] + x];
 
-    VW_UnlockSurface(screenBuffer);
+    VW_UnlockSurface (screen.buffer);
 
     return pixel;
 }
@@ -482,30 +711,30 @@ void VW_Bar (int x, int y, int width, int height, int color)
 {
 	byte *dest;
 
-    x *= scaleFactor;
-    y *= scaleFactor;
-    width *= scaleFactor;
-    height *= scaleFactor;
+    x *= screen.scale;
+    y *= screen.scale;
+    width *= screen.scale;
+    height *= screen.scale;
 
-	assert (x >= 0 && x + width <= screenWidth
-            && y >= 0 && y + height <= screenHeight
+	assert (x >= 0 && x + width <= screen.width
+            && y >= 0 && y + height <= screen.height
 			&& "VW_Bar: Destination rectangle out of bounds!");
 
-	dest = VW_LockSurface(screenBuffer);
+	dest = VW_LockSurface(screen.buffer);
 
 	if (dest == NULL)
         return;
 
-	dest += ylookup[y] + x;
+	dest += screen.bufferofs + ylookup[y] + x;
 
 	while (height--)
 	{
 		memset (dest,color,width);
 
-		dest += bufferPitch;
+		dest += screen.buffer->pitch;
 	}
 
-	VW_UnlockSurface (screenBuffer);
+	VW_UnlockSurface (screen.buffer);
 }
 
 
@@ -537,12 +766,12 @@ void VW_DrawPropString (const char *string)
 	int i;
 	int sx, sy;
 
-	dest = VW_LockSurface(screenBuffer);
+	dest = VW_LockSurface(screen.buffer);
 	if(dest == NULL) return;
 
 	font = (fontstruct *) grsegs[STARTFONT+fontnumber];
 	height = font->height;
-	dest += scaleFactor * (ylookup[py] + px);
+	dest += screen.bufferofs + (screen.scale * (ylookup[py] + px));
 
 	while ((ch = (byte)*string++)!=0)
 	{
@@ -554,19 +783,19 @@ void VW_DrawPropString (const char *string)
 			{
 				if(source[i*step])
 				{
-					for(sy=0; sy<scaleFactor; sy++)
-						for(sx=0; sx<scaleFactor; sx++)
-							dest[ylookup[scaleFactor*i+sy]+sx]=fontcolor;
+					for(sy=0; sy<screen.scale; sy++)
+						for(sx=0; sx<screen.scale; sx++)
+							dest[ylookup[screen.scale*i+sy]+sx]=fontcolor;
 				}
 			}
 
 			source++;
 			px++;
-			dest+=scaleFactor;
+			dest+=screen.scale;
 		}
 	}
 
-	VW_UnlockSurface(screenBuffer);
+	VW_UnlockSurface (screen.buffer);
 }
 
 
@@ -680,33 +909,35 @@ void VW_MemToScreen (byte *source, int width, int height, int x, int y)
     int i,j,sci,scj;
     int m,n;
 
-    x *= scaleFactor;
-    y *= scaleFactor;
+    x *= screen.scale;
+    y *= screen.scale;
 
-    assert (x >= 0 && x + width * scaleFactor <= screenWidth
-            && y >= 0 && y + height * scaleFactor <= screenHeight
+    assert (x >= 0 && x + width * screen.scale <= screen.width
+            && y >= 0 && y + height * screen.scale <= screen.height
             && "VW_MemToScreen: Destination rectangle out of bounds!");
 
-    dest = VW_LockSurface(screenBuffer);
+    dest = VW_LockSurface(screen.buffer);
 
     if (dest == NULL)
         return;
 
-    for (j = 0, scj = 0; j < height; j++, scj += scaleFactor)
+    dest += screen.bufferofs;
+
+    for (j = 0, scj = 0; j < height; j++, scj += screen.scale)
     {
-        for (i = 0, sci = 0; i < width; i++, sci += scaleFactor)
+        for (i = 0, sci = 0; i < width; i++, sci += screen.scale)
         {
             color = source[(j * width) + i];
 
-            for (m = 0; m < scaleFactor; m++)
+            for (m = 0; m < screen.scale; m++)
             {
-                for (n = 0; n < scaleFactor; n++)
+                for (n = 0; n < screen.scale; n++)
                     dest[ylookup[scj + m + y] + sci + n + x] = color;
             }
         }
     }
 
-    VW_UnlockSurface (screenBuffer);
+    VW_UnlockSurface (screen.buffer);
 }
 
 
@@ -731,33 +962,35 @@ void VW_SegToScreen (byte *source, int srcwidth, int srcx, int srcy,
     int i,j,sci,scj;
     int m,n;
 
-    destx *= scaleFactor;
-    desty *= scaleFactor;
+    destx *= screen.scale;
+    desty *= screen.scale;
 
-    assert (destx >= 0 && destx + width * scaleFactor <= screenWidth
-            && desty >= 0 && desty + height * scaleFactor <= screenHeight
+    assert (destx >= 0 && destx + width * screen.scale <= screen.width
+            && desty >= 0 && desty + height * screen.scale <= screen.height
             && "VW_MemToScreenScaledCoord: Destination rectangle out of bounds!");
 
-    dest = VW_LockSurface(screenBuffer);
+    dest = VW_LockSurface(screen.buffer);
 
     if (dest == NULL)
         return;
 
-    for (j = 0, scj = 0; j < height; j++, scj += scaleFactor)
+    dest += screen.bufferofs;
+
+    for (j = 0, scj = 0; j < height; j++, scj += screen.scale)
     {
-        for (i = 0, sci = 0; i < width; i++, sci += scaleFactor)
+        for (i = 0, sci = 0; i < width; i++, sci += screen.scale)
         {
             color = source[((j + srcy) * srcwidth) + (i + srcx)];
 
-            for (m = 0; m < scaleFactor; m++)
+            for (m = 0; m < screen.scale; m++)
             {
-                for (n = 0; n < scaleFactor; n++)
+                for (n = 0; n < screen.scale; n++)
                     dest[ylookup[scj + m + desty] + sci + n + destx] = color;
             }
         }
     }
 
-    VW_UnlockSurface (screenBuffer);
+    VW_UnlockSurface (screen.buffer);
 }
 
 
@@ -771,11 +1004,11 @@ void VW_SegToScreen (byte *source, int srcwidth, int srcx, int srcy,
 
 void VW_UpdateScreen (void)
 {
-	SDL_BlitSurface (screenBuffer,NULL,screen,NULL);
+	SDL_BlitSurface (screen.buffer,NULL,screen.surface,NULL);
 
-    SDL_UpdateTexture(texture, NULL, screen->pixels, screenPitch);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
-    SDL_RenderPresent(renderer);
+    SDL_UpdateTexture (screen.texture,NULL,screen.surface->pixels,screen.surface->pitch);
+    SDL_RenderCopy (screen.renderer,screen.texture,NULL,NULL);
+    SDL_RenderPresent (screen.renderer);
 }
 
 
@@ -826,10 +1059,10 @@ static int log2_ceil(uint32_t x)
     return n;
 }
 
-void VW_Startup (void)
+void VW_InitRndMask (void)
 {
-    int rndbits_x = log2_ceil(screenWidth);
-    rndbits_y = log2_ceil(screenHeight);
+    int rndbits_x = log2_ceil(screen.width);
+    rndbits_y = log2_ceil(screen.height);
 
     int rndbits = rndbits_x + rndbits_y;
     if(rndbits < 17)
@@ -845,10 +1078,10 @@ boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolea
     unsigned x, y, p, frame, pixperframe;
     int32_t  rndval;
 
-    x1 *= scaleFactor;
-    y1 *= scaleFactor;
-    width *= scaleFactor;
-    height *= scaleFactor;
+    x1 *= screen.scale;
+    y1 *= screen.scale;
+    width *= screen.scale;
+    height *= screen.scale;
 
     rndval = 1;
     pixperframe = width * height / frames;
@@ -856,7 +1089,7 @@ boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolea
     IN_StartAck ();
 
     frame = GetTimeCount();
-    byte *srcptr = VW_LockSurface(screenBuffer);
+    byte *srcptr = VW_LockSurface(screen.buffer);
     if(srcptr == NULL) return false;
 
     while (1)
@@ -865,12 +1098,12 @@ boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolea
 
         if(abortable && IN_CheckAck ())
         {
-            VW_UnlockSurface(screenBuffer);
+            VW_UnlockSurface(screen.buffer);
             VW_UpdateScreen ();
             return true;
         }
 
-        byte *destptr = VW_LockSurface(screen);
+        byte *destptr = VW_LockSurface(screen.surface);
 
         if (!destptr)
             Quit ("Unable to lock dest surface: %s\n",SDL_GetError());
@@ -895,17 +1128,17 @@ boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolea
                 //
                 // copy one pixel
                 //
-                if(screenBits == 8)
+                if (screen.bits == 8)
                 {
-                    *(destptr + (y1 + y) * screen->pitch + x1 + x)
-                        = *(srcptr + (y1 + y) * screenBuffer->pitch + x1 + x);
+                    *(destptr + (y1 + y) * screen.surface->pitch + x1 + x)
+                        = *(srcptr + (y1 + y) * screen.buffer->pitch + x1 + x);
                 }
                 else
                 {
-                    byte col = *(srcptr + (y1 + y) * screenBuffer->pitch + x1 + x);
-                    uint32_t fullcol = SDL_MapRGBA(screen->format, curpal[col].r, curpal[col].g, curpal[col].b,SDL_ALPHA_OPAQUE);
-                    memcpy(destptr + (y1 + y) * screen->pitch + (x1 + x) * screen->format->BytesPerPixel,
-                        &fullcol, screen->format->BytesPerPixel);
+                    byte col = *(srcptr + (y1 + y) * screen.buffer->pitch + x1 + x);
+                    uint32_t fullcol = SDL_MapRGBA(screen.surface->format, curpal[col].r, curpal[col].g, curpal[col].b,SDL_ALPHA_OPAQUE);
+                    memcpy(destptr + (y1 + y) * screen.surface->pitch + (x1 + x) * screen.surface->format->BytesPerPixel,
+                        &fullcol, screen.surface->format->BytesPerPixel);
                 }
             }
 
@@ -914,19 +1147,19 @@ boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolea
                 //
                 // entire sequence has been completed
                 //
-                VW_UnlockSurface (screenBuffer);
-                VW_UnlockSurface (screen);
+                VW_UnlockSurface (screen.buffer);
+                VW_UnlockSurface (screen.surface);
                 VW_UpdateScreen ();
 
                 return false;
             }
         }
 
-        VW_UnlockSurface(screen);
+        VW_UnlockSurface (screen.surface);
 
-        SDL_UpdateTexture(texture, NULL, screen->pixels, screenPitch);
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
-        SDL_RenderPresent(renderer);
+        SDL_UpdateTexture (screen.texture,NULL,screen.surface->pixels,screen.surface->pitch);
+        SDL_RenderCopy (screen.renderer,screen.texture,NULL,NULL);
+        SDL_RenderPresent (screen.renderer);
 
         frame++;
         Delay(frame - GetTimeCount());        // don't go too fast

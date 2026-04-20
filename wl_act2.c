@@ -3821,13 +3821,13 @@ void    A_StartDeathCam (objtype *ob)
 
     gamestate.victoryflag = true;
 
-    fadeheight = basescreenHeight;
+    fadeheight = screen.baseheight;
 
     if (viewsize != 21)
         fadeheight -= STATUSLINES;
 
-    VW_Bar (0,0,basescreenWidth,fadeheight,bordercol);
-    VW_FizzleFade (0,0,basescreenWidth,fadeheight,70,false);
+    VW_Bar (0,0,screen.basewidth,fadeheight,bordercol);
+    VW_FizzleFade (0,0,screen.basewidth,fadeheight,70,false);
 
     if (bordercol != VIEWCOLOR)
     {
@@ -3893,7 +3893,7 @@ void    A_StartDeathCam (objtype *ob)
 
     DrawPlayBorder ();
 
-    fizzlein = true;
+    screen.flags |= SC_FIZZLEIN;
 
     switch (ob->obclass)
     {

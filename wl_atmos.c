@@ -87,10 +87,10 @@ void DrawStarSky (void)
     int16_t   stopx,starty,stopy;
     fixed     x,y,z;
     fixed     xx,yy;
-    
+
     dest = vbuf;
-    
-    for (i = 0; i < centery; i++, dest += bufferPitch)
+
+    for (i = 0; i < centery; i++, dest += screen.buffer->pitch)
         memset (dest,0,viewwidth);
 
     for (i = 0; i < MAXPOINTS; i++)
@@ -109,7 +109,7 @@ void DrawStarSky (void)
         if (shade > 15)
             continue;
 
-        xx = ((x / z) * scaleFactor) + (centerx + 1);
+        xx = ((x / z) * screen.scale) + (centerx + 1);
         yy = centery - (y / z);
 
         if (xx >= 0 && xx < viewwidth && yy >= 0 && yy < centery)
@@ -122,34 +122,34 @@ void DrawStarSky (void)
     if (z <= 0)
         return;
 
-    xx = ((x / z) * scaleFactor) + (centerx + 1);
+    xx = ((x / z) * screen.scale) + (centerx + 1);
     yy = centery - (((centery - (centery >> 3)) << 22) / z);
 
-    if (xx > (scaleFactor * -10) && xx < viewwidth) 
-    { 
-        stopx = 10 * scaleFactor;
+    if (xx > (screen.scale * -10) && xx < viewwidth)
+    {
+        stopx = 10 * screen.scale;
         starty = 0;
-        stopy = 10 * scaleFactor;
-        i = 0; 
+        stopy = 10 * screen.scale;
+        i = 0;
 
         if (xx < 0)
-            i = -xx; 
-        if (xx >= viewwidth - (10 * scaleFactor))
-            stopx = viewwidth - xx; 
+            i = -xx;
+        if (xx >= viewwidth - (10 * screen.scale))
+            stopx = viewwidth - xx;
 
         if (yy < 0)
             starty = -yy;
-        if (yy >= viewheight - (10 * scaleFactor))
+        if (yy >= viewheight - (10 * screen.scale))
             stopy = viewheight - yy;
 
         while (i < stopx)
         {
-            for (j = starty; j < stopy; j++) 
-                vbuf[ylookup[yy + j] + xx + i] = moon[((j / scaleFactor) * 10) + (i / scaleFactor)];
+            for (j = starty; j < stopy; j++)
+                vbuf[ylookup[yy + j] + xx + i] = moon[((j / screen.scale) * 10) + (i / screen.scale)];
 
             i++;
         }
-    } 
+    }
 }
 
 #endif
@@ -282,10 +282,10 @@ void DrawSnow (void)
     byte      shade;
     int32_t   ax,az,x,y,z,xx,yy,height,actheight;
     fixed     px,pz;
-    
+
     px = (player->y + FixedMul(0x7900, viewsin)) >> 6;
     pz = (player->x - FixedMul(0x7900, viewcos)) >> 6;
-    
+
     rainpos -= tics * 256;
 
     for (i = 0; i < MAXPOINTS; i++)

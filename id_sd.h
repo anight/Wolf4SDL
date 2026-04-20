@@ -119,9 +119,9 @@ extern globalsoundpos channelSoundPos[];
 extern  boolean         AdLibPresent,
                         SoundBlasterPresent,
                         SoundPositioned;
-extern  byte            SoundMode;
-extern  byte            DigiMode;
-extern  byte            MusicMode;
+extern  int             SoundMode;
+extern  int             DigiMode;
+extern  int             MusicMode;
 extern  word            NumDigi;
 extern  digiinfo        *DigiList;
 extern  int             DigiMap[];
@@ -149,11 +149,11 @@ extern  void    SD_MusicOn(void),
 extern  int     SD_MusicOff(void);
 
 extern  boolean SD_MusicPlaying(void);
-extern  boolean SD_SetSoundMode(byte mode);
-extern  boolean SD_SetMusicMode(byte mode);
+extern  boolean SD_SetSoundMode(int mode);
+extern  boolean SD_SetMusicMode(int mode);
 extern  word    SD_SoundPlaying(void);
 
-extern  void    SD_SetDigiDevice(byte);
+extern  void    SD_SetDigiDevice(int mode);
 extern  void	SD_PrepareSound(int which);
 extern  int     SD_PlayDigitized(word which,int leftpos,int rightpos);
 extern  void    SD_StopDigitized(void);

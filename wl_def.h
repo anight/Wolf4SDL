@@ -955,7 +955,7 @@ extern  char     configdir[256];
 extern  char     configname[13];
 
 extern  fixed    focallength;
-extern  unsigned screenofs;
+extern  unsigned viewscreenofs;
 extern  int      viewscreenx,viewscreeny;
 extern  int      viewwidth,viewheight;
 extern  short    centerx,centery;
@@ -967,6 +967,9 @@ extern  int      dirangle[9];
 
 extern  boolean  startgame,loadedgame;
 extern  int      mouseadjustment;
+extern  int      savedsoundmode;
+extern  int      savedmusicmode;
+extern  int      saveddigimode;
 
 //
 // derived constants
@@ -977,6 +980,7 @@ extern  fixed    scale;
 //
 // command line parameter variables
 //
+extern  boolean  param_windowed;
 extern  boolean  param_debugmode;
 extern  boolean  param_nowait;
 extern  int      param_difficulty;
@@ -992,6 +996,8 @@ extern  boolean  param_ignorenumchunks;
 
 void            NewGame (int difficulty, int episode);
 void            CalcProjection (int32_t focal);
+void            SetupWalls (void);
+void            BuildTables (void);
 void            NewViewSize (int width);
 boolean         SetViewSize (unsigned width, unsigned height);
 boolean         LoadTheGame (FILE *file, int x, int y);
@@ -1176,7 +1182,7 @@ extern  byte    *vbuf;
 
 extern  int32_t lasttimecount;
 extern  int32_t frameon;
-extern  boolean fizzlein,fpscounter;
+extern  boolean fpscounter;
 
 #if defined(USE_FLOORCEILINGTEX) || defined(USE_CLOUDSKY)
 extern  int16_t *spanstart;
@@ -1205,6 +1211,8 @@ extern  short   midangle;
 extern  word    horizwall[MAXWALLTILES],vertwall[MAXWALLTILES];
 
 
+void    Init3DRenderer (void);
+void    Shutdown3DRenderer (void);
 void    ScalePost (void);
 void    ThreeDRefresh (void);
 void    CalcTics (void);

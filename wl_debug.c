@@ -121,7 +121,7 @@ void PictureGrabber (void)
 
     // overwrites WSHOT999.BMP if all wshot files exist
 
-    SDL_SaveBMP(screenBuffer, fname);
+    SDL_SaveBMP(screen.buffer, fname);
 
     CenterWindow (18,2);
     US_PrintCentered ("Screenshot taken");
@@ -269,24 +269,24 @@ void ShapeTest (void)
                 //
                 // draw the wall
                 //
-                vbuf = VW_LockSurface(screenBuffer);
+                vbuf = VW_LockSurface(screen.buffer);
 
                 if (!vbuf)
                     Quit ("ShapeTest: Unable to create surface for walls!");
 
-                postx = (screenWidth / 2) - ((TEXTURESIZE / 2) * scaleFactor);
+                postx = (screen.width / 2) - ((TEXTURESIZE / 2) * screen.scale);
                 postsource = addr;
 
-                centery = screenHeight / 2;
+                centery = screen.height / 2;
                 oldviewheight = viewheight;
                 viewheight = 0x7fff;            // quick hack to skip clipping
 
-                for (x = 0, j = 0; x < TEXTURESIZE * scaleFactor; x++, j++, postx++)
+                for (x = 0, j = 0; x < TEXTURESIZE * screen.scale; x++, j++, postx++)
                 {
-                    wallheight[postx] = 256 * scaleFactor;
+                    wallheight[postx] = 256 * screen.scale;
                     ScalePost ();
 
-                    if (j == scaleFactor)
+                    if (j == screen.scale)
                     {
                         j = 0;
                         postsource += TEXTURESIZE;
@@ -296,7 +296,7 @@ void ShapeTest (void)
                 viewheight = oldviewheight;
                 centery = viewheight / 2;
 
-                VW_UnlockSurface (screenBuffer);
+                VW_UnlockSurface (screen.buffer);
                 vbuf = NULL;
             }
             else if (i < PMSoundStart)
@@ -304,21 +304,21 @@ void ShapeTest (void)
                 //
                 // draw the sprite
                 //
-                vbuf = VW_LockSurface(screenBuffer);
+                vbuf = VW_LockSurface(screen.buffer);
 
                 if (!vbuf)
                     Quit ("ShapeTest: Unable to create surface for sprites!");
 
-                centery = screenHeight / 2;
+                centery = screen.height / 2;
                 oldviewheight = viewheight;
                 viewheight = 0x7fff;            // quick hack to skip clipping
 
-                SimpleScaleShape (screenWidth / 2,i - PMSpriteStart,64 * scaleFactor);
+                SimpleScaleShape (screen.width / 2,i - PMSpriteStart,64 * screen.scale);
 
                 viewheight = oldviewheight;
                 centery = viewheight / 2;
 
-                VW_UnlockSurface(screenBuffer);
+                VW_UnlockSurface(screen.buffer);
                 vbuf = NULL;
             }
             else if (i == ChunksInFile - 1)
@@ -941,15 +941,15 @@ void DrawMapBorder (void)
 {
     int height;
 
-    height = screenHeight - ((screenHeight / tilesize) * tilesize);
+    height = screen.height - ((screen.height / tilesize) * tilesize);
 
-    vbuf += ylookup[screenHeight - 1];
+    vbuf += ylookup[screen.height - 1];
 
     while (height--)
     {
-        memset (vbuf,BLACK,screenWidth);
+        memset (vbuf,BLACK,screen.width);
 
-        vbuf -= bufferPitch;
+        vbuf -= screen.buffer->pitch;
     }
 }
 
@@ -972,7 +972,7 @@ void OverheadRefresh (void)
     statobj_t *statptr;
     objtype   *obj;
 
-    vbuf = VW_LockSurface(screenBuffer);
+    vbuf = VW_LockSurface(screen.buffer);
 
     if (!vbuf)
         Quit ("OverheadRefresh: Unable to create surface!");
@@ -1051,12 +1051,12 @@ void OverheadRefresh (void)
     //
     // cover the empty bar at the bottom of the screen if necessary
     //
-    if (screenHeight != (viewtiley * tilesize))
+    if (screen.height != (viewtiley * tilesize))
         DrawMapBorder ();
 
     VW_WaitVBL (3);                // don't scroll too fast
 
-    VW_UnlockSurface (screenBuffer);
+    VW_UnlockSurface (screen.buffer);
     vbuf = NULL;
 
     VW_UpdateScreen ();
@@ -1073,7 +1073,7 @@ void OverheadRefresh (void)
 
 void SetupMapView (void)
 {
-    switch (scaleFactor)
+    switch (screen.scale)
     {
         case 1: tilesize = 16; break;
         case 2: tilesize = 32; break;
@@ -1089,8 +1089,8 @@ void SetupMapView (void)
     tilemapratio = MAPSIZE / tilesize;
     tilewallratio = TEXTURESIZE / tilesize;
 
-    viewtilex = screenWidth / tilesize;
-    viewtiley = screenHeight / tilesize;
+    viewtilex = screen.width / tilesize;
+    viewtiley = screen.height / tilesize;
 
     if (viewtilex > mapwidth)
         viewtilex = mapwidth;

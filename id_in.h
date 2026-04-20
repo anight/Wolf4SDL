@@ -131,8 +131,6 @@ extern  boolean    MousePresent;
 extern  boolean    Paused;
 extern  ScanCode   LastScan;
 extern  int        JoyNumButtons;
-extern  boolean    forcegrabmouse;
-extern  bool       GrabInput;
 
 // Function prototypes
 #define	IN_ClearKey(code)	{Keyboard[code] = false;\

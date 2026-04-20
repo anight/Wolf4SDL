@@ -21,8 +21,8 @@ ClearSplitVWB (void)
 {
     WindowX = 0;
     WindowY = 0;
-    WindowW = basescreenWidth;
-    WindowH = basescreenHeight - STATUSLINES;
+    WindowW = screen.basewidth;
+    WindowH = screen.baseheight - STATUSLINES;
 }
 
 
@@ -144,7 +144,10 @@ Victory (void)
     StartCPMusic (URAHERO_MUS);
     ClearSplitVWB ();
 
-    VW_Bar (0, 0, basescreenWidth, basescreenHeight - STATUSLINES + 1, VIEWCOLOR);
+    //
+    // KS: Wolf4SDL 1.5 added the + 1, why?
+    //
+    VW_Bar (0, 0, screen.basewidth, screen.baseheight - STATUSLINES + 1, VIEWCOLOR);
     if (bordercol != VIEWCOLOR)
         DrawStatusBorder (VIEWCOLOR);
 
@@ -256,8 +259,7 @@ Victory (void)
     IN_Ack ();
 
     VW_FadeOut ();
-    if(screenHeight % 200 != 0)
-        VW_ClearScreen(0);
+    ClearMenuBorders ();
 
     MainMenu[savegame].active = 0;  // ADDEDFIX 3 - Tricob
 
@@ -532,7 +534,7 @@ LevelCompleted (void)
     };
 
     ClearSplitVWB ();           // set up for double buffering in split screen
-    VW_Bar (0, 0, basescreenWidth, basescreenHeight - STATUSLINES + 1, VIEWCOLOR);
+    VW_Bar (0, 0, screen.basewidth, screen.baseheight - STATUSLINES + 1, VIEWCOLOR);
 
     if (bordercol != VIEWCOLOR)
         DrawStatusBorder (VIEWCOLOR);
@@ -940,12 +942,12 @@ void PreloadGraphics (void)
     DrawLevel ();
     ClearSplitVWB ();           // set up for double buffering in split screen
 
-    WindowX = (basescreenWidth / 2) - 112;
-    WindowY = (basescreenHeight - (STATUSLINES + 48)) / 2;
+    WindowX = (screen.basewidth / 2) - 112;
+    WindowY = (screen.baseheight - (STATUSLINES + 48)) / 2;
     WindowW = pictable[GETPSYCHEDPIC - STARTPICS].width;
     WindowH = pictable[GETPSYCHEDPIC - STARTPICS].height;
 
-    VW_Bar (0,0,basescreenWidth,basescreenHeight - (STATUSLINES - 1),bordercol);
+    VW_Bar (0,0,screen.basewidth,screen.baseheight - (STATUSLINES - 1),bordercol);
     VW_DrawPic (WindowX,WindowY,GETPSYCHEDPIC);
 
     VW_UpdateScreen ();

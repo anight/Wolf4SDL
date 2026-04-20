@@ -8,6 +8,35 @@
 #define BLACK			0
 
 
+typedef struct screenstruct
+{
+    int          width,height;
+    int          basewidth,baseheight;
+    int          heightoffset;
+    int          scale;
+    int          bits;
+    unsigned     flags;
+    unsigned     bufferofs;
+    const char   *title;
+
+    SDL_Window   *window;
+    SDL_Renderer *renderer;
+    SDL_Texture  *texture;
+    SDL_Surface  *surface,*buffer;
+} screen_t;
+
+
+enum screenflags
+{
+    SC_FULLSCREEN    = 0x0001,
+    SC_FADED         = 0x0002,
+    SC_FIZZLEIN      = 0x0004,
+    SC_INPUTGRABBED  = 0x0008,
+    SC_HWACCEL       = 0x0010,
+    SC_VSYNC         = 0x0020,
+};
+
+
 typedef struct
 {
 	int16_t width,height;
@@ -22,45 +51,38 @@ typedef struct
 } fontstruct;
 
 
+extern  screen_t        screen;
 extern	pictabletype	*pictable;
 
 extern  byte            fontcolor,backcolor;
 extern	int             fontnumber;
 extern	int             px,py;
 
-extern SDL_Surface *screen, *screenBuffer;
-extern SDL_Window *window;
-extern SDL_Renderer *renderer;
-extern SDL_Texture *texture;
-
-extern  boolean  fullscreen;
-extern  int16_t  screenWidth, screenHeight;
-extern  int      basescreenWidth,basescreenHeight;
-extern  unsigned screenPitch, bufferPitch;
-extern  int      screenBits;
-extern  int      scaleFactor;
-
-extern	boolean  screenfaded;
 extern	unsigned bordercolor;
 
 extern  uint32_t *ylookup;
 
-extern SDL_Color gamepal[256];
+extern  SDL_Color gamepal[256];
 
 //===========================================================================
 
 #define SETFONTCOLOR(f,b) fontcolor=f;backcolor=b;
 
 #define VW_WaitVBL(a)        SDL_Delay((a) * 8)
-#define VW_ClearScreen(c)    SDL_FillRect(screenBuffer,NULL,(c))
+#define VW_ClearScreen(c)    SDL_FillRect(screen.buffer,NULL,(c))
 
 #define VW_FadeIn()		    VW_FadePaletteIn(gamepal,30)
 #define VW_FadeOut()	    VW_FadePaletteOut(0,0,0,30)
 
 void VW_DePlaneVGA (byte *source, int width, int height);
-void VW_SetVGAPlaneMode (void);
+void VW_SetupVideo (void);
 void VW_Startup (void);
 void VW_Shutdown (void);
+void VW_InitRndMask (void);
+void VW_ClearTexture (void);
+void VW_ChangeDisplay (screen_t *scr);
+void VW_ChangeWindow (screen_t *scr);
+void VW_SetViewport (int width, int height);
 
 void VW_ConvertPalette (byte *srcpal, SDL_Color *destpal, int numColors);
 void VW_FillPalette (int red, int green, int blue);
@@ -70,8 +92,9 @@ void VW_GetPalette (SDL_Color *palette);
 void VW_FadePaletteOut (int red, int green, int blue, int steps);
 void VW_FadePaletteIn (SDL_Color *palette, int steps);
 
-byte *VW_LockSurface(SDL_Surface *surface);
+void *VW_LockSurface(SDL_Surface *surface);
 void VW_UnlockSurface(SDL_Surface *surface);
+void VW_SetBufferOffset (unsigned offset);
 
 byte VW_GetPixel (int x, int y);
 void VW_Plot (int x, int y, int color);

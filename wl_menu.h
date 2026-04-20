@@ -43,8 +43,8 @@
 #endif
 
 #define SENSITIVE       60
-#define CENTERX         ((int) screenWidth / 2)
-#define CENTERY         ((int) screenHeight / 2)
+#define CENTERX         ((int)screen.width / 2)
+#define CENTERY         ((int)screen.height / 2)
 
 #define MENU_X  76
 #define MENU_Y  55
@@ -76,7 +76,12 @@
 #define CTL_Y   86
 #endif
 #define CTL_W   284
-#define CTL_H   60
+#define CTL_H   ((13 * NUMCTLITEMS) + 7)
+
+#define DISP_X          24
+#define DISP_Y          86
+#define DISP_W          284
+#define DISP_H          ((13 * NUMDISPITEMS) + 7)
 
 #define LSM_X   85
 #define LSM_Y   55
@@ -136,6 +141,7 @@ int  HandleMenu(CP_iteminfo *item_i,
                 CP_itemtype *items,
                 void (*routine)(int w));
 void ClearMScreen(void);
+void ClearMenuBorders (void);
 void DrawWindow(int x,int y,int w,int h,int wcolor);
 void DrawOutline(int x,int y,int w,int h,int color1,int color2);
 void WaitKeyUp(void);
@@ -169,6 +175,7 @@ void DrawNewGame(void);
 void DrawChangeView(int view);
 void DrawMouseSens(void);
 void DrawCtlScreen(void);
+void DrawDisplayMenu (screen_t *scr);
 void DrawCustomScreen(void);
 void DrawLSAction(int which);
 void DrawCustMouse(int hilight);
@@ -196,6 +203,7 @@ int CP_Quit(int);
 int CP_ViewScores(int);
 int  CP_EndGame(int);
 int  CP_CheckQuick(ScanCode scancode);
+int ChangeDisplay (int blank);
 int CustomControls(int);
 int MouseSensitivity(int);
 
@@ -225,5 +233,44 @@ enum menuitems
         backtodemo,
         quit
 };
+
+
+enum dispitemtype
+{
+    DISP_VSYNC,
+#ifdef NOTYET
+    DISP_HWACCEL,
+#endif
+    DISP_FULLSCREEN,
+    DISP_RATIO,
+    DISP_RES,
+    DISP_APPLY,
+
+    NUMDISPITEMS
+};
+
+#ifdef JAPAN
+enum ctrlitemtype
+{
+    CTL_MOUSEENABLE,
+    CTL_JOYENABLE,
+    CTL_JOY2BUTTONUNKNOWN,
+    CTL_GAMEPADUNKONWN,
+    CTL_MOUSESENS,
+    CTL_CUSTOMIZE,
+};
+#else
+enum ctrlitemtype
+{
+    CTL_MOUSEENABLE,
+    CTL_JOYENABLE,
+    CTL_MOUSESENS,
+    CTL_CUSTOMIZE,
+#ifndef CLASSIC_MENU
+    CTL_DISPLAY,
+#endif
+    NUMCTLITEMS
+};
+#endif
 
 #endif

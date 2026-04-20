@@ -22,7 +22,7 @@
 =============================================================================
 */
 
-boolean         ingame,fizzlein;
+boolean         ingame;
 gametype        gamestate;
 byte            bordercol=VIEWCOLOR;        // color of the Change View/Ingame border
 
@@ -821,8 +821,8 @@ void DrawPlayBorderSides (void)
     if (viewsize == 21)
         return;
 
-	const int sw = basescreenWidth;
-	const int sh = basescreenHeight;
+	const int sw = screen.basewidth;
+	const int sh = screen.baseheight;
 	const int vw = baseviewwidth;
 	const int vh = baseviewheight;
 
@@ -845,9 +845,9 @@ void DrawPlayBorderSides (void)
     if (xl)
     {
         // Paint game view border lines
-	    VW_Bar (xl - 1,  yl - 1,  vw + 1, 1,      0);                      // upper border
+	    VW_Bar (xl - 1,  yl - 1,  vw + 1, 1,      BLACK);                  // upper border
 	    VW_Bar (xl,      yl + vh, vw + 1, 1,      bordercol - 2);          // lower border
-	    VW_Bar (xl - 1,  yl - 1,  1,      vh + 1, 0);                      // left border
+	    VW_Bar (xl - 1,  yl - 1,  1,      vh + 1, BLACK);                  // left border
 	    VW_Bar (xl + vw, yl - 1,  1,      vh + 2, bordercol - 2);          // right border
 	    VW_Bar (xl - 1,  yl + vh, 1,      1,      bordercol - 3);          // lower left highlight
     }
@@ -869,8 +869,8 @@ void DrawPlayBorderSides (void)
 
 void DrawStatusBorder (byte color)
 {
-    int sw = basescreenWidth;
-    int sh = basescreenHeight;
+    int sw = screen.basewidth;
+    int sh = screen.baseheight;
 
     VW_Bar (0,0,sw,sh - (STATUSLINES - 3),color);
     VW_Bar (0,sh - (STATUSLINES - 3),8,STATUSLINES - 4,color);
@@ -895,31 +895,32 @@ void DrawStatusBorder (byte color)
 
 void DrawPlayBorder (void)
 {
+    const int h = screen.baseheight - STATUSLINES;
     const int vw = baseviewwidth;
     const int vh = baseviewheight;
-    const int xl = (basescreenWidth / 2) - (vw / 2);
-    const int yl = (basescreenHeight - STATUSLINES - vh) / 2;
+    const int xl = (screen.basewidth / 2) - (vw / 2);
+    const int yl = (h - vh) / 2;
 
     if (bordercol != VIEWCOLOR)
         DrawStatusBorder (bordercol);
     else
     {
-        VW_Bar (0,basescreenHeight - STATUSLINES,8,STATUSLINES,bordercol);
-        VW_Bar (basescreenWidth - 8,basescreenHeight - STATUSLINES,8,STATUSLINES,bordercol);
+        VW_Bar (0,h,8,STATUSLINES,bordercol);
+        VW_Bar (screen.basewidth - 8,h,8,STATUSLINES,bordercol);
     }
 
-    if (viewheight == screenHeight)
+    if (viewheight == screen.height)
         return;
 
-    VW_Bar (0,0,basescreenWidth,basescreenHeight - STATUSLINES,bordercol);
-    VW_Bar (xl,yl,vw,vh,0);
+    VW_Bar (0,0,screen.basewidth,h,bordercol);
+    VW_Bar (xl,yl,vw,vh,BLACK);
 
     if (xl)
     {
         // Paint game view border lines
-        VW_Bar (xl - 1,  yl - 1,  vw + 1, 1,      0);              // upper border
+        VW_Bar (xl - 1,  yl - 1,  vw + 1, 1,      BLACK);          // upper border
         VW_Bar (xl,      yl + vh, vw + 1, 1,      bordercol - 2);  // lower border
-        VW_Bar (xl - 1,  yl - 1,  1,      vh + 1, 0);              // left border
+        VW_Bar (xl - 1,  yl - 1,  1,      vh + 1, BLACK);          // left border
         VW_Bar (xl + vw, yl - 1,  1,      vh + 2, bordercol - 2);  // right border
         VW_Bar (xl - 1,  yl + vh, 1,      1,      bordercol - 3);  // lower left highlight
     }
@@ -941,7 +942,7 @@ void DrawPlayBorder (void)
 
 void DrawPlayScreen (void)
 {
-    VW_DrawPic (0,basescreenHeight - STATUSLINES,STATUSBARPIC);
+    VW_DrawPic (0,screen.baseheight - STATUSLINES,STATUSBARPIC);
     DrawPlayBorder ();
 
     DrawFace ();
@@ -970,7 +971,7 @@ void ShowStatusBar (void)
     const int width = pictable[STATUSBARPIC - STARTPICS].width;
     const int height = pictable[STATUSBARPIC - STARTPICS].height;
 
-    VW_SegToScreen (grsegs[STATUSBARPIC],width,9,4,9,basescreenHeight - (height - 4),width - 18,height - 7);
+    VW_SegToScreen (grsegs[STATUSBARPIC],width,9,4,9,screen.baseheight - (height - 4),width - 18,height - 7);
 
     ingame = false;
     DrawFace ();
@@ -1116,7 +1117,7 @@ void RecordDemo (void)
     SetupGameLevel ();
     StartMusic ();
 
-    fizzlein = true;
+    screen.flags |= SC_FIZZLEIN;
 
     PlayLoop ();
 
@@ -1215,7 +1216,7 @@ void Died (void)
     int32_t dx,dy;
     int     iangle,curangle,clockwise,counter,change;
 
-    if (screenfaded)
+    if (screen.flags & SC_FADED)
     {
         ThreeDRefresh ();
         VW_FadeIn ();
@@ -1359,6 +1360,7 @@ void GameLoop (void)
     ClearMemory ();
     SETFONTCOLOR(0,15);
     VW_FadeOut();
+    VW_SetBufferOffset (0);    // draw a full screen while in the 3D renderer
     DrawPlayScreen ();
     died = false;
     do
@@ -1394,7 +1396,7 @@ void GameLoop (void)
         else
         {
             died = false;
-            fizzlein = true;
+            screen.flags |= SC_FIZZLEIN;
         }
 
 //        DrawLevel ();                     // ADDEDFIX 5 - moved up  Chris Chokan
@@ -1547,8 +1549,7 @@ void GameLoop (void)
                     break;                          // more lives left
 
                 VW_FadeOut ();
-                if(screenHeight % 200 != 0)
-                    VW_ClearScreen(0);
+                ClearMenuBorders ();
 
 #ifdef _arch_dreamcast
                 DC_StatusClearLCD();
@@ -1570,6 +1571,7 @@ void GameLoop (void)
 #else
                 VW_FadePaletteOut (0,17,17,300);
 #endif
+                ClearMenuBorders ();
                 ClearMemory ();
 
                 Victory ();

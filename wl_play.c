@@ -444,7 +444,7 @@ void PollControls (void)
 //
     PollKeyboardButtons ();
 
-    if (mouseenabled && GrabInput)
+    if (mouseenabled && (screen.flags & SC_INPUTGRABBED))
         PollMouseButtons ();
 
     if (joystickenabled)
@@ -455,7 +455,7 @@ void PollControls (void)
 //
     PollKeyboardMove ();
 
-    if (mouseenabled && GrabInput)
+    if (mouseenabled && (screen.flags & SC_INPUTGRABBED))
         PollMouseMove ();
 
     if (joystickenabled)
@@ -544,7 +544,7 @@ void CheckKeys (void)
     ScanCode scan;
 
 
-    if (screenfaded || demoplayback)    // don't do anything with a faded screen
+    if ((screen.flags & SC_FADED) || demoplayback)    // don't do anything with a faded screen
         return;
 
     scan = LastScan;
@@ -674,6 +674,8 @@ void CheckKeys (void)
         ClearSplitVWB ();
         US_ControlPanel (scan);
 
+        VW_SetBufferOffset (0);
+
         DrawPlayBorderSides ();
 
         SETFONTCOLOR (0, 15);
@@ -692,6 +694,9 @@ void CheckKeys (void)
         SETFONTCOLOR (0, 15);
         IN_ClearKeysDown ();
         VW_FadeOut();
+
+        VW_SetBufferOffset (0);
+
         if(viewsize != 21)
             DrawPlayScreen ();
         if (!startgame && !loadedgame)
@@ -1306,7 +1311,7 @@ void PlayLoop (void)
         gamestate.TimeCount += tics;
 
         UpdateSoundLoc ();      // JAB
-        if (screenfaded)
+        if (screen.flags & SC_FADED)
             VW_FadeIn ();
 
         CheckKeys ();

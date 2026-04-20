@@ -146,7 +146,7 @@ void DrawParallax (void)
         while (y--)
         {
             *dest = skysource[(frac >> FRACBITS) & (SKYTEXTURESIZE - 1)];
-            dest += bufferPitch;
+            dest += screen.buffer->pitch;
             frac += fracstep;
         }
     }

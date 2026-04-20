@@ -91,12 +91,44 @@ word    horizwall[MAXWALLTILES],vertwall[MAXWALLTILES];
 
 
 /*
-============================================================================
-
-                           3 - D  DEFINITIONS
-
-============================================================================
+========================
+=
+= Init3DRenderer
+=
+========================
 */
+
+void Init3DRenderer (void)
+{
+    pixelangle = SafeMalloc(screen.width * sizeof(*pixelangle));
+    wallheight = SafeMalloc(screen.width * sizeof(*wallheight));
+#if defined(USE_FLOORCEILINGTEX) || defined(USE_CLOUDSKY)
+    spanstart = SafeMalloc((screen.height >> 1) * sizeof(*spanstart));
+#endif
+    SetupWalls ();
+    BuildTables ();
+    NewViewSize (viewsize);
+    InitRedShifts ();
+}
+
+
+/*
+========================
+=
+= Shutdown3DRenderer
+=
+========================
+*/
+
+void Shutdown3DRenderer (void)
+{
+    SafeFree (pixelangle);
+    SafeFree (wallheight);
+#if defined(USE_FLOORCEILINGTEX) || defined(USE_CLOUDSKY)
+    SafeFree (spanstart);
+#endif
+}
+
 
 /*
 ========================
@@ -315,7 +347,7 @@ void ScalePost (void)
     ywcount = yd = wallheight[postx] >> 3;
     if(yd <= 0) yd = 100;
 
-    yoffs = (centery - ywcount) * bufferPitch;
+    yoffs = (centery - ywcount) * screen.buffer->pitch;
     if(yoffs < 0) yoffs = 0;
     yoffs += postx;
 
@@ -339,7 +371,7 @@ void ScalePost (void)
 #else
     col = postsource[yw];
 #endif
-    yendoffs = yendoffs * bufferPitch + postx;
+    yendoffs = yendoffs * screen.buffer->pitch + postx;
     while(yoffs <= yendoffs)
     {
         vbuf[yendoffs] = col;
@@ -359,7 +391,7 @@ void ScalePost (void)
             col = postsource[yw];
 #endif
         }
-        yendoffs -= bufferPitch;
+        yendoffs -= screen.buffer->pitch;
     }
 }
 
@@ -375,7 +407,7 @@ void ScaleSkyPost (void)
 
     midy = (viewheight / 2) - 1;
 
-    yoffs = midy * bufferPitch;
+    yoffs = midy * screen.buffer->pitch;
     if(yoffs < 0) yoffs = 0;
     yoffs += postx;
 
@@ -393,11 +425,11 @@ void ScaleSkyPost (void)
     texoffs = TEXTUREMASK - ((xtex & (TEXTURESIZE - 1)) << TEXTURESHIFT);
 
     y = yendoffs;
-    yendoffs = yendoffs * bufferPitch + postx;
+    yendoffs = yendoffs * screen.buffer->pitch + postx;
     while(yoffs <= yendoffs)
     {
         vbuf[yendoffs] = postsourcesky[texoffs + (y * TEXTURESIZE) / skyheight];
-        yendoffs -= bufferPitch;
+        yendoffs -= screen.buffer->pitch;
         y--;
     }
 }
@@ -620,24 +652,24 @@ void VGAClearScreen (void)
     int y;
     byte *src,*dest = vbuf;
 #ifdef USE_SHADING
-    for (y = 0; y < centery; y++, dest += bufferPitch)
+    for (y = 0; y < centery; y++, dest += screen.buffer->pitch)
     {
         src = GetShade((centery - y) << 3,0);
 
         memset (dest,src[ceiling],viewwidth);
     }
 
-    for (; y < viewheight; y++, dest += bufferPitch)
+    for (; y < viewheight; y++, dest += screen.buffer->pitch)
     {
         src = GetShade((y - centery) << 3,0);
 
         memset (dest,src[0x19],viewwidth);
     }
 #else
-    for (y = 0; y < centery; y++, dest += bufferPitch)
+    for (y = 0; y < centery; y++, dest += screen.buffer->pitch)
         memset (dest,ceiling,viewwidth);
 
-    for (; y < viewheight; y++, dest += bufferPitch)
+    for (; y < viewheight; y++, dest += screen.buffer->pitch)
         memset (dest,0x19,viewwidth);
 #endif
 }
@@ -1485,11 +1517,15 @@ void ThreeDRefresh (void)
 #ifdef REVEALMAP
     mapseen[player->tilex][player->tiley] = true;
 #endif
+    if (screen.bufferofs)
+        Quit ("Screen buffer offset must be 0 while 3D rendering!");
 
-    vbuf = VW_LockSurface(screenBuffer);
-    if(vbuf == NULL) return;
+    vbuf = VW_LockSurface(screen.buffer);
 
-    vbuf += screenofs;
+    if (vbuf == NULL)
+        return;
+
+    vbuf += viewscreenofs;
 
     Setup3DView ();
 
@@ -1539,17 +1575,16 @@ void ThreeDRefresh (void)
     if (Keyboard[sc_Tab] && viewsize == 21 && gamestate.weapon != -1)
         ShowStatusBar ();
 
-    VW_UnlockSurface(screenBuffer);
+    VW_UnlockSurface (screen.buffer);
     vbuf = NULL;
 
 //
 // show screen and time last cycle
 //
-
-    if (fizzlein)
+    if (screen.flags & SC_FIZZLEIN)
     {
-        VW_FizzleFade (0,0,basescreenWidth,basescreenHeight,20,false);
-        fizzlein = false;
+        VW_FizzleFade (0,0,screen.basewidth,screen.baseheight,20,false);
+        screen.flags &= ~SC_FIZZLEIN;
 
         lasttimecount = GetTimeCount();          // don't make a big tic count
     }

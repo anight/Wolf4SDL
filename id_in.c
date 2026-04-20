@@ -20,7 +20,6 @@
 // configuration variables
 //
 boolean MousePresent;
-boolean forcegrabmouse;
 
 
 // 	Global variables
@@ -33,7 +32,6 @@ static SDL_Joystick *Joystick;
 int JoyNumButtons;
 static int JoyNumHats;
 
-bool GrabInput = false;
 
 /*
 =============================================================================
@@ -190,8 +188,8 @@ boolean IN_JoyPresent (void)
 
 void IN_CenterMouse (void)
 {
-    if (MousePresent && GrabInput)
-        SDL_WarpMouseInWindow (window,screenWidth / 2,screenHeight / 2);
+    if (screen.flags & SC_INPUTGRABBED)
+        SDL_WarpMouseInWindow (screen.window,screen.width / 2,screen.height / 2);
 }
 
 
@@ -247,12 +245,14 @@ void IN_SetWindowGrab (SDL_Window *window)
 {
     const char *which[] = {"hide","show"};
 
-    if (SDL_ShowCursor(!GrabInput) < 0)
-        Quit ("Unable to %s cursor: %s\n",which[!GrabInput],SDL_GetError());
+    boolean grabinput = (screen.flags & SC_INPUTGRABBED) != 0;
 
-    SDL_SetWindowGrab (window,GrabInput);
+    if (SDL_ShowCursor(!grabinput) < 0)
+        Quit ("Unable to %s cursor: %s\n",which[!grabinput],SDL_GetError());
 
-    if (SDL_SetRelativeMouseMode(GrabInput))
+    SDL_SetWindowGrab (window,grabinput);
+
+    if (SDL_SetRelativeMouseMode(grabinput))
         Quit ("Unable to set relative mode for mouse: %s\n",SDL_GetError());
 }
 
@@ -295,9 +295,9 @@ static void IN_HandleEvent (SDL_Event *event)
         case SDL_KEYDOWN:
             if (key == sc_ScrollLock || key == sc_F12)
             {
-                GrabInput = !GrabInput;
+                screen.flags ^= SC_INPUTGRABBED;
 
-                IN_SetWindowGrab (window);
+                IN_SetWindowGrab (screen.window);
 
                 return;
             }
@@ -394,12 +394,8 @@ void IN_Startup(void)
 
     SDL_EventState (SDL_MOUSEMOTION,SDL_IGNORE);
 
-    if (fullscreen || forcegrabmouse)
-    {
-        GrabInput = true;
-
-        IN_SetWindowGrab (window);
-    }
+    if (screen.flags & (SC_FULLSCREEN | SC_INPUTGRABBED))
+        IN_SetWindowGrab (screen.window);
 
     // I didn't find a way to ask libSDL whether a mouse is present, yet...
 #if defined(GP2X)
@@ -409,6 +405,10 @@ void IN_Startup(void)
 #else
     MousePresent = true;
 #endif
+    if (!MousePresent)
+        mouseenabled = false;
+    if (!IN_JoyPresent())
+        joystickenabled = false;
 
     IN_Started = true;
 }

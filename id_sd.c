@@ -70,9 +70,9 @@ globalsoundpos channelSoundPos[MIX_CHANNELS];
         boolean         AdLibPresent,
                         SoundBlasterPresent,SBProPresent,
                         SoundPositioned;
-        byte            SoundMode;
-        byte            MusicMode;
-        byte            DigiMode;
+        int             SoundMode;
+        int             MusicMode;
+        int             DigiMode;
 static  byte          **SoundTable;
         int             DigiMap[LASTSOUND];
         int             DigiChannel[STARTMUSIC - STARTDIGISOUNDS];
@@ -485,7 +485,7 @@ void SD_ChannelFinished(int channel)
 }
 
 void
-SD_SetDigiDevice(byte mode)
+SD_SetDigiDevice(int mode)
 {
     boolean devicenotpresent;
 
@@ -712,7 +712,7 @@ SDL_StartDevice(void)
 //
 ///////////////////////////////////////////////////////////////////////////
 boolean
-SD_SetSoundMode(byte mode)
+SD_SetSoundMode(int mode)
 {
     boolean result = false;
     word    tableoffset;
@@ -759,7 +759,7 @@ SD_SetSoundMode(byte mode)
 //
 ///////////////////////////////////////////////////////////////////////////
 boolean
-SD_SetMusicMode(byte mode)
+SD_SetMusicMode(int mode)
 {
     boolean result = false;
 
@@ -936,6 +936,19 @@ SD_Startup(void)
     SD_SetMusicMode(smm_Off);
 
     SDL_SetupDigi();
+
+    if (savedsoundmode == -1)
+        savedsoundmode = sdm_AdLib;
+
+    if (savedmusicmode == -1)
+        savedmusicmode = smm_AdLib;
+
+    if (saveddigimode == -1)
+        saveddigimode = sds_SoundBlaster;
+
+    SD_SetMusicMode (savedmusicmode);
+    SD_SetSoundMode (savedsoundmode);
+    SD_SetDigiDevice (saveddigimode);
 
     SD_Started = true;
 }

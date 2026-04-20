@@ -78,7 +78,7 @@ void ScaleLine (int16_t x, int16_t toppix, fixed fracstep, byte *linesrc, byte *
             while (startpix < endpix)
             {
                 *dest = color;
-                dest += bufferPitch;
+                dest += screen.buffer->pitch;
                 startpix++;
             }
         }

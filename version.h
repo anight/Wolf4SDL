@@ -49,6 +49,7 @@
 //#define REVEALMAP           // Enables showing only the areas of the overhead map that have been seen
 
 #define DEBUGKEYS             // Comment this out to compile without the Tab debug keys
+//#define CLASSIC_MENU          // Disable extra menu features
 #define ARTSEXTERN
 #define DEMOSEXTERN
 #define PLAYDEMOLIKEORIGINAL  // When playing or recording demos, several bug fixes do not take

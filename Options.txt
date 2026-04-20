@@ -8,8 +8,6 @@ Launch Parameters for Wolf4SDL 2.0
 --nowait               Skips intro screens
 --windowed[-mouse]     Starts the game in a window [and grabs mouse]
 --res <width> <height> Sets the screen resolution (must be multiple of 320x200 or 320x240)
---resf <w> <h>         Sets any screen resolution >= 320x200 (may result in graphic errors)
---bits <b>             Sets the screen color depth (must be divisible by 8; use this if you have palette/fading problems)
 --extravbls <vbls>     Sets a delay after each frame, which may help to reduce flickering (unit is currently 8 ms, default: 0)
 --joystick <index>     Use the index-th joystick if available (-1 to disable joystick, default: 0)
 --joystickhat <index>  Enables movement with the given coolie hat

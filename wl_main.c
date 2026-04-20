@@ -56,7 +56,7 @@ int     dirangle[9] = {0,ANGLES/8,2*ANGLES/8,3*ANGLES/8,4*ANGLES/8,
 // proejection variables
 //
 fixed    focallength;
-unsigned screenofs;
+unsigned viewscreenofs;
 int      viewscreenx,viewscreeny;
 int      viewwidth,viewheight;
 short    centerx,centery;
@@ -70,6 +70,9 @@ int32_t  heightnumerator;
 boolean startgame;
 boolean loadedgame;
 int     mouseadjustment;
+int     savedsoundmode = -1;
+int     savedmusicmode = -1;
+int     saveddigimode = -1;
 
 char    configdir[256] = "";
 char    configname[13] = "config.";
@@ -77,15 +80,16 @@ char    configname[13] = "config.";
 //
 // Command line parameter variables
 //
-boolean param_debugmode = false;
-boolean param_nowait = false;
+boolean param_windowed;
+boolean param_debugmode;
+boolean param_nowait;
 int     param_difficulty = 1;           // default is "normal"
 int     param_tedlevel = -1;            // default is not to start a level
-int     param_joystickindex = 0;
+int     param_joystickindex;
 int     param_audiobuffer = DEFAULT_AUDIO_BUFFER_SIZE;
 
 #if defined(_arch_dreamcast)
-int     param_joystickhat = 0;
+int     param_joystickhat;
 int     param_samplerate = 11025;       // higher samplerates result in "out of memory"
 #elif defined(GP2X_940)
 int     param_joystickhat = -1;
@@ -95,17 +99,78 @@ int     param_joystickhat = -1;
 int     param_samplerate = 44100;
 #endif
 
-int     param_mission = 0;
-boolean param_goodtimes = false;
-boolean param_ignorenumchunks = false;
+int     param_mission;
+boolean param_goodtimes;
+boolean param_ignorenumchunks;
+
 
 /*
-=============================================================================
-
-                            LOCAL VARIABLES
-
-=============================================================================
+===================
+=
+= SetupDisplayDefaults
+=
+= Setup best display options according to the drivers
+=
+===================
 */
+
+void SetupDisplayDefaults (void)
+{
+    int              i,n;
+    uint32_t         flags;
+    SDL_DisplayMode  dm;
+    SDL_RendererInfo ri;
+
+    if (!screen.width)
+    {
+        if (SDL_GetDesktopDisplayMode(0,&dm))
+            Quit ("Unable to get desktop display mode: %s\n",SDL_GetError());
+
+        screen.width = dm.w;
+
+        if (screen.width % 320)
+        {
+            screen.width += 320;
+            screen.width -= screen.width % 320;
+        }
+
+        screen.height = (200 * screen.width) / 320;
+    }
+
+    n = SDL_GetNumRenderDrivers();
+
+    if (n < 0)
+        Quit ("Unable to get render drivers: %s\n",SDL_GetError());
+    else if (!n)
+        Quit ("No render drivers available!");
+
+    //
+    // look for a renderer with hardware acceleration
+    // a software fallback will be used only as a last resort
+    //
+    for (i = 0; i < n; i++)
+    {
+        flags = 0;
+
+        if (SDL_GetRenderDriverInfo(i,&ri))
+            Quit ("Unable to get render driver info: %s\n",SDL_GetError());
+
+        if (ri.flags & SDL_RENDERER_ACCELERATED)
+        {
+            flags |= SC_HWACCEL;
+
+            if (ri.flags & SDL_RENDERER_PRESENTVSYNC)
+                flags |= SC_VSYNC;
+
+            break;
+        }
+    }
+
+    if (!param_windowed)
+        flags |= SC_FULLSCREEN | SC_INPUTGRABBED;
+
+    screen.flags |= flags;
+}
 
 
 /*
@@ -118,9 +183,6 @@ boolean param_ignorenumchunks = false;
 
 void ReadConfig(void)
 {
-    byte  sd;
-    byte  sm;
-    byte sds;
     FILE *file;
 
     char configpath[300];
@@ -152,9 +214,9 @@ void ReadConfig(void)
 
         fread (Scores,sizeof(Scores),1,file);
 
-        fread (&sd,sizeof(sd),1,file);
-        fread (&sm,sizeof(sm),1,file);
-        fread (&sds,sizeof(sds),1,file);
+        fread (&savedsoundmode,sizeof(savedsoundmode),1,file);
+        fread (&savedmusicmode,sizeof(savedmusicmode),1,file);
+        fread (&saveddigimode,sizeof(saveddigimode),1,file);
 
         fread (&mouseenabled,sizeof(mouseenabled),1,file);
         fread (&joystickenabled,sizeof(joystickenabled),1,file);
@@ -173,27 +235,30 @@ void ReadConfig(void)
         fread (&viewsize,sizeof(viewsize),1,file);
         fread (&mouseadjustment,sizeof(mouseadjustment),1,file);
 
-        fclose (file);
-
-        if ((sd == sdm_AdLib || sm == smm_AdLib) && !AdLibPresent
-                && !SoundBlasterPresent)
+        //
+        // skip over the screen resolution variables if we already have a width set
+        //
+        if (screen.width)
+            fseek (file,sizeof(screen.width) + sizeof(screen.height),SEEK_CUR);
+        else
         {
-            sd = sdm_PC;
-            sm = smm_Off;
+            fread (&screen.width,sizeof(screen.width),1,file);
+            fread (&screen.height,sizeof(screen.height),1,file);
         }
 
-        if ((sds == sds_SoundBlaster && !SoundBlasterPresent))
-            sds = sds_Off;
+        fread (&screen.flags,sizeof(screen.flags),1,file);
+
+        fclose (file);
+
+        if (param_windowed)
+            screen.flags &= ~(SC_FULLSCREEN | SC_INPUTGRABBED);
+
+        screen.flags &= ~(SC_FADED | SC_FIZZLEIN);
 
         // make sure values are correct
 
         if(mouseenabled) mouseenabled=true;
         if(joystickenabled) joystickenabled=true;
-
-        if (!MousePresent)
-            mouseenabled = false;
-        if (!IN_JoyPresent())
-            joystickenabled = false;
 
         if(mouseadjustment<0) mouseadjustment=0;
         else if(mouseadjustment>9) mouseadjustment=9;
@@ -210,35 +275,14 @@ void ReadConfig(void)
         // no config file, so select by hardware
         //
 noconfig:
-        if (SoundBlasterPresent || AdLibPresent)
-        {
-            sd = sdm_AdLib;
-            sm = smm_AdLib;
-        }
-        else
-        {
-            sd = sdm_PC;
-            sm = smm_Off;
-        }
-
-        if (SoundBlasterPresent)
-            sds = sds_SoundBlaster;
-        else
-            sds = sds_Off;
-
-        if (MousePresent)
-            mouseenabled = true;
-
-        if (IN_JoyPresent())
-            joystickenabled = true;
+        mouseenabled = true;
+        joystickenabled = true;
 
         viewsize = 19;                          // start with a good size
         mouseadjustment=5;
-    }
 
-    SD_SetMusicMode (sm);
-    SD_SetSoundMode (sd);
-    SD_SetDigiDevice (sds);
+        SetupDisplayDefaults ();
+    }
 }
 
 /*
@@ -291,6 +335,10 @@ void WriteConfig(void)
 
         fwrite (&viewsize,sizeof(viewsize),1,file);
         fwrite (&mouseadjustment,sizeof(mouseadjustment),1,file);
+
+        fwrite (&screen.width,sizeof(screen.width),1,file);
+        fwrite (&screen.height,sizeof(screen.height),1,file);
+        fwrite (&screen.flags,sizeof(screen.flags),1,file);
 
         fclose (file);
     }
@@ -835,9 +883,8 @@ void SetupWalls (void)
 
 void SignonScreen (void)                        // VGA version
 {
-    VW_SetVGAPlaneMode ();
-
     VW_MemToScreen (signon,320,200,0,0);
+    VW_UpdateScreen ();
 }
 
 
@@ -1219,12 +1266,12 @@ static void InitGame()
 #if defined(GP2X_940)
     GP2X_MemoryInit();
 #endif
+    ReadConfig ();
+
+    VW_Startup ();
 
     SignonScreen ();
 
-	VW_UpdateScreen();
-
-    VW_Startup ();
     IN_Startup ();
     PM_Startup ();
     SD_Startup ();
@@ -1255,8 +1302,6 @@ static void InitGame()
 //
     InitDigiMap ();
 
-    ReadConfig ();
-
     SetupSaveGames();
 
 //
@@ -1285,24 +1330,12 @@ static void InitGame()
 //
 // load in and lock down some basic chunks
 //
-    BuildTables ();          // trig tables
-    SetupWalls ();
+    Init3DRenderer ();
 
-    NewViewSize (viewsize);
-
-//
-// initialize variables
-//
-    InitRedShifts ();
 #ifndef SPEARDEMO
     if(!didjukebox)
 #endif
         FinishSignon();
-
-#ifdef NOTYET
-    vdisp = (byte *) (0xa0000+PAGE1START);
-    vbuf = (byte *) (0xa0000+PAGE2START);
-#endif
 }
 
 //===========================================================================
@@ -1323,19 +1356,19 @@ boolean SetViewSize (unsigned width, unsigned height)
     centery = viewheight / 2;
     shootdelta = viewwidth/10;
 
-    if (viewheight == screenHeight)
-        viewscreenx = viewscreeny = screenofs = 0;
+    if (viewheight == screen.height)
+        viewscreenx = viewscreeny = viewscreenofs = 0;
     else
     {
-        viewscreenx = (screenWidth-viewwidth) / 2;
-        viewscreeny = (screenHeight-scaleFactor*STATUSLINES-viewheight)/2;
-        screenofs = viewscreeny*screenWidth+viewscreenx;
+        viewscreenx = (screen.width-viewwidth) / 2;
+        viewscreeny = (screen.height-screen.scale*STATUSLINES-viewheight)/2;
+        viewscreenofs = ylookup[viewscreeny] + viewscreenx;
     }
 
-    baseviewwidth = (viewwidth / scaleFactor) & ~15;
-    baseviewheight = (viewheight / scaleFactor) & ~1;
-    baseviewscreenx = viewscreenx / scaleFactor;
-    baseviewscreeny = viewscreeny / scaleFactor;
+    baseviewwidth = (viewwidth / screen.scale) & ~15;
+    baseviewheight = (viewheight / screen.scale) & ~1;
+    baseviewscreenx = viewscreenx / screen.scale;
+    baseviewscreeny = viewscreeny / screen.scale;
 
 //
 // calculate trace angles and projection constants
@@ -1356,23 +1389,24 @@ void ShowViewSize (int width)
     switch (width)
     {
         case 21:
-            viewwidth = screenWidth;
-            viewheight = screenHeight;
+            viewwidth = screen.width;
+            viewheight = screen.height;
             break;
 
         case 20:
-            viewwidth = screenWidth;
-            viewheight = screenHeight - (scaleFactor * STATUSLINES);
+            viewwidth = screen.width;
+            viewheight = screen.height - (screen.scale * STATUSLINES);
             break;
 
         default:
-            viewwidth = ((width << 4) * screenWidth) / basescreenWidth;
-            viewheight = ((width << 3) * screenHeight) / basescreenHeight;
+            viewwidth = ((width << 4) * screen.width) / screen.basewidth;
+            viewheight = ((width << 3) * screen.height) / screen.baseheight;
+            viewheight += (screen.heightoffset * 2) * screen.scale;
             break;
     }
 
-    baseviewwidth = viewwidth / scaleFactor;
-    baseviewheight = viewheight / scaleFactor;
+    baseviewwidth = viewwidth / screen.scale;
+    baseviewheight = viewheight / screen.scale;
 
     if (width == 21)
         VW_Bar (0,0,baseviewwidth,baseviewheight,0);
@@ -1381,8 +1415,8 @@ void ShowViewSize (int width)
 
     viewwidth = oldwidth;
     viewheight = oldheight;
-    baseviewwidth = viewwidth / scaleFactor;
-    baseviewheight = viewheight / scaleFactor;
+    baseviewwidth = viewwidth / screen.scale;
+    baseviewheight = viewheight / screen.scale;
 }
 
 
@@ -1395,18 +1429,19 @@ void NewViewSize (int width)
     switch (width)
     {
         case 21:
-            newwidth = screenWidth;
-            newheight = screenHeight;
+            newwidth = screen.width;
+            newheight = screen.height;
             break;
 
         case 20:
-            newwidth = screenWidth;
-            newheight = screenHeight - (scaleFactor * STATUSLINES);
+            newwidth = screen.width;
+            newheight = screen.height - (screen.scale * STATUSLINES);
             break;
 
         default:
-            newwidth = ((width << 4) * screenWidth) / basescreenWidth;
-            newheight = ((width << 3) * screenHeight) / basescreenHeight;
+            newwidth = ((width << 4) * screen.width) / screen.basewidth;
+            newheight = ((width << 3) * screen.height) / screen.baseheight;
+            newheight += (screen.heightoffset * 2) * screen.scale;
             break;
     }
 
@@ -1446,6 +1481,7 @@ void Quit (const char *errorStr, ...)
         WriteConfig ();
 
     ShutdownId ();
+    Shutdown3DRenderer ();
 
     if (ret)
         Error (error);
@@ -1584,8 +1620,7 @@ static void DemoLoop()
             if (playstate == ex_abort)
                 break;
             VW_FadeOut();
-            if(screenHeight % 200 != 0)
-                VW_ClearScreen(0);
+            ClearMenuBorders ();
             StartCPMusic(INTROSONG);
         }
 
@@ -1661,11 +1696,11 @@ void CheckParameters(int argc, char *argv[])
                 param_tedlevel = atoi(argv[i]);
         }
         else IFARG("--windowed")
-            fullscreen = false;
+            param_windowed = true;
         else IFARG("--windowed-mouse")
         {
-            fullscreen = false;
-            forcegrabmouse = true;
+            screen.flags |= SC_INPUTGRABBED;
+            param_windowed = true;
         }
         else IFARG("--res")
         {
@@ -1673,37 +1708,12 @@ void CheckParameters(int argc, char *argv[])
                 snprintf (error,sizeof(error),"The res option needs the width and/or the height argument!");
             else
             {
-                screenWidth = atoi(argv[++i]);
-                screenHeight = atoi(argv[++i]);
-                int factor = screenWidth / 320;
-                if ((screenWidth % 320) || (screenHeight != 200 * factor && screenHeight != 240 * factor))
-                    snprintf (error,sizeof(error),"Screen size must be a multiple of 320x200 or 320x240!");
-            }
-        }
-        else IFARG("--resf")
-        {
-            if (i + 2 >= argc)
-                snprintf (error,sizeof(error),"The resf option needs the width and/or the height argument!");
-            else
-            {
-                screenWidth = atoi(argv[++i]);
-                screenHeight = atoi(argv[++i]);
-                if (screenWidth < 320)
-                    snprintf (error,sizeof(error),"Screen width must be at least 320!");
-                if (screenHeight < 200)
-                    snprintf (error,sizeof(error),"Screen height must be at least 200!");
-            }
-        }
-        else IFARG("--bits")
-        {
-            if (++i >= argc)
-                snprintf (error,sizeof(error),"The bits option is missing the color depth argument!");
-            else
-            {
-                screenBits = atoi(argv[i]);
+                screen.width = atoi(argv[++i]);
+                screen.height = atoi(argv[++i]);
+                screen.scale = screen.width / 320;
 
-                if (screenBits > 32 || (screenBits & 7))
-                    snprintf (error,sizeof(error),"Screen color depth must be 8, 16, 24, or 32!");
+                if ((screen.width % 320) || (screen.height != 200 * screen.scale && screen.height != 240 * screen.scale))
+                    snprintf (error,sizeof(error),"Screen size must be a multiple of 320x200 or 320x240!");
             }
         }
         else IFARG("--extravbls")

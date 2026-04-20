@@ -116,11 +116,19 @@ CP_itemtype SndMenu[] = {
 #endif
 };
 
-#ifdef JAPAN
-enum { CTL_MOUSEENABLE, CTL_JOYENABLE, CTL_JOY2BUTTONUNKNOWN, CTL_GAMEPADUNKONWN, CTL_MOUSESENS, CTL_CUSTOMIZE };
-#else
-enum { CTL_MOUSEENABLE, CTL_MOUSESENS, CTL_JOYENABLE, CTL_CUSTOMIZE };
+
+CP_itemtype DispMenu[NUMDISPITEMS] =
+{
+    {1, "Vsync", 0},
+#ifdef NOTYET
+    {1, "Hardware Acceleration", 0},
 #endif
+    {1, "Fullscreen", 0},
+    {1, "Aspect Ratio:", 0},
+    {1, "Resolution:", 0},
+    {1, "Apply", 0},
+};
+
 
 CP_itemtype CtlMenu[] = {
 #ifdef JAPAN
@@ -132,9 +140,13 @@ CP_itemtype CtlMenu[] = {
     {1, "", CustomControls}
 #else
     {0, STR_MOUSEEN, 0},
-    {0, STR_SENS, MouseSensitivity},
     {0, STR_JOYEN, 0},
-    {1, STR_CUSTOM, CustomControls}
+    {0, STR_SENS, MouseSensitivity},
+    {1, STR_CUSTOM, CustomControls},
+#ifndef CLASSIC_MENU
+    {1, STR_DISPLAY, ChangeDisplay},
+#endif
+
 #endif
 };
 
@@ -243,6 +255,7 @@ CP_iteminfo MainItems = { MENU_X, MENU_Y, lengthof(MainMenu), STARTITEM, 24 },
             SndItems  = { SM_X, SM_Y1, lengthof(SndMenu), 0, 52 },
             LSItems   = { LSM_X, LSM_Y, lengthof(LSMenu), 0, 24 },
             CtlItems  = { CTL_X, CTL_Y, lengthof(CtlMenu), -1, 56 },
+            DispItems = { DISP_X, DISP_Y, lengthof(DispMenu), 0, 56},
             CusItems  = { 8, CST_Y + 13 * 2, lengthof(CusMenu), -1, 0},
 #ifndef SPEAR
             NewEitems = { NE_X, NE_Y, lengthof(NewEmenu), 0, 88 },
@@ -265,7 +278,7 @@ int color_norml[] = {
 
 int EpisodeSelect[6] = { 1 };
 
-
+static int selectedpic[2] = {C_NOTSELECTEDPIC,C_SELECTEDPIC};
 static int SaveGamesAvail[10];
 static int StartGame;
 static int SoundStatus = 1;
@@ -694,8 +707,7 @@ CP_CheckQuick (ScanCode scancode)
             else
             {
                 VW_FadeOut ();
-                if(screenHeight % 200 != 0)
-                    VW_ClearScreen(0);
+                ClearMenuBorders ();
 
                 lastgamemusicoffset = StartCPMusic (MENUSONG);
                 pickquick = CP_SaveGame (0);
@@ -735,8 +747,7 @@ CP_CheckQuick (ScanCode scancode)
             else
             {
                 VW_FadeOut ();
-                if(screenHeight % 200 != 0)
-                    VW_ClearScreen(0);
+                ClearMenuBorders ();
 
                 lastgamemusicoffset = StartCPMusic (MENUSONG);
                 pickquick = CP_LoadGame (0);    // loads lastgamemusicoffs
@@ -1668,6 +1679,9 @@ CP_Control (int blank)
 
             case CTL_MOUSESENS:
             case CTL_CUSTOMIZE:
+#ifndef CLASSIC_MENU
+            case CTL_DISPLAY:
+#endif
                 DrawCtlScreen ();
                 MenuFadeIn ();
                 WaitKeyUp ();
@@ -1837,22 +1851,16 @@ DrawCtlScreen (void)
 
     CtlMenu[CTL_MOUSESENS].active = mouseenabled;
 
-
     DrawMenu (&CtlItems, CtlMenu);
-
 
     x = CTL_X + CtlItems.indent - 24;
     y = CTL_Y + 3;
-    if (mouseenabled)
-        VW_DrawPic (x, y, C_SELECTEDPIC);
-    else
-        VW_DrawPic (x, y, C_NOTSELECTEDPIC);
 
-    y = CTL_Y + 29;
-    if (joystickenabled)
-        VW_DrawPic (x, y, C_SELECTEDPIC);
-    else
-        VW_DrawPic (x, y, C_NOTSELECTEDPIC);
+    VW_DrawPic (x,y,selectedpic[mouseenabled != 0]);
+
+    y += 13;
+
+    VW_DrawPic (x,y,selectedpic[joystickenabled != 0]);
 
     //
     // PICK FIRST AVAILABLE SPOT
@@ -1870,6 +1878,166 @@ DrawCtlScreen (void)
     }
 
     DrawMenuGun (&CtlItems);
+    VW_UpdateScreen ();
+}
+
+
+/*
+===================
+=
+= ChangeDisplay
+=
+===================
+*/
+
+int ChangeDisplay (int blank)
+{
+    int             which;
+    screen_t        newscr;
+    SDL_DisplayMode dm;
+
+    DrawDisplayMenu (&screen);
+    MenuFadeIn ();
+
+    //
+    // these are the only screen struct members newscr
+    // should use; DO NOT attempt to use the others in
+    // DrawDisplayMenu (unless you REALLY know what you're
+    // doing!)
+    //
+    memset (&newscr,0,sizeof(newscr));
+
+    newscr.width = screen.width;
+    newscr.height = screen.height;
+    newscr.scale = screen.scale;
+
+    if (screen.heightoffset)
+        newscr.heightoffset = 1;
+
+    do
+    {
+        which = HandleMenu(&DispItems,DispMenu,NULL);
+
+        switch (which)
+        {
+            case DISP_VSYNC:
+                screen.flags ^= SC_VSYNC;
+                SDL_RenderSetVSync (screen.renderer,(screen.flags & SC_VSYNC) != 0);
+                break;
+#ifdef NOTYET
+            case DISP_HWACCEL:
+                screen.flags ^= SC_HWACCEL;
+
+                if (!(screen.flags & SC_HWACCEL))
+                    screen.flags &= ~SC_VSYNC;
+                break;
+#endif
+            case DISP_FULLSCREEN:
+                screen.flags ^= SC_FULLSCREEN;
+                VW_ChangeDisplay (&screen);
+                break;
+
+            case DISP_RATIO:
+                newscr.heightoffset ^= 1;
+                break;
+
+            case DISP_RES:
+                if (SDL_GetDesktopDisplayMode(0,&dm))
+                    Quit ("Unable to get desktop display mode: %s\n",SDL_GetError());
+
+                if (dm.w % 320)
+                {
+                    dm.w += 320;
+                    dm.w -= dm.w % 320;
+                }
+
+                if (++newscr.scale > dm.w / 320)
+                    newscr.scale = 1;
+                break;
+
+            case DISP_APPLY:
+                VW_ChangeDisplay (&newscr);
+                break;
+        }
+
+        if (which != -1)
+            DrawDisplayMenu (&newscr);
+
+        ShootSnd ();
+
+    } while (which >= 0);
+
+    MenuFadeOut ();
+
+    return blank;
+}
+
+
+/*
+=========================
+=
+= DrawDisplayMenu
+=
+=========================
+*/
+
+void DrawDisplayMenu (screen_t *scr)
+{
+    int  x,y;
+    word w,h;
+
+    ClearMScreen ();
+
+    DrawStripes (10);
+
+    VW_DrawPic (80,0,C_CONTROLPIC);
+    DrawWindow (DISP_X - 8,DISP_Y - 5,DISP_W,DISP_H,BKGDCOLOR);
+
+    scr->width = scr->scale * 320;
+    scr->height = scr->scale * ((scr->heightoffset) ? 240 : 200);
+
+    if (scr->scale != screen.scale || scr->width != screen.width || scr->height != screen.height)
+        DispMenu[DISP_APPLY].active = 1;
+    else
+        DispMenu[DISP_APPLY].active = 0;
+
+    if (!(screen.flags & SC_HWACCEL))
+        DispMenu[DISP_VSYNC].active = 0;
+    else
+        DispMenu[DISP_VSYNC].active = 1;
+
+    DrawMenu (&DispItems,DispMenu);
+
+    x = DISP_X + DispItems.indent - 24;
+    y = DISP_Y + 3;
+
+    VW_DrawPic (x,y,selectedpic[(screen.flags & SC_VSYNC) != 0]);
+#ifdef NOTYET
+    y += 13;
+    VW_DrawPic (x,y,selectedpic[(screen.flags & SC_HWACCEL) != 0]);
+#endif
+    y += 13;
+    VW_DrawPic (x,y,selectedpic[(screen.flags & SC_FULLSCREEN) != 0]);
+
+    VW_MeasurePropString (DispMenu[DISP_RATIO].string,&w,&h);
+
+    PrintX = WindowX + w + 3;
+    PrintY = y + 13 - 3;
+
+    if (scr->heightoffset)
+        US_Print ("4:3");
+    else
+        US_Print ("16:10");
+
+    VW_MeasurePropString (DispMenu[DISP_RES].string,&w,&h);
+
+    PrintX = WindowX + w + 3;
+    PrintY += 13;
+
+    snprintf (str,sizeof(str),"%dx%d",scr->width,scr->height);
+
+    US_Print (str);
+
     VW_UpdateScreen ();
 }
 
@@ -2624,8 +2792,8 @@ CP_ChangeView (int blank)
     ControlInfo ci;
 
     WindowX = WindowY = 0;
-    WindowW = basescreenWidth;
-    WindowH = basescreenHeight;
+    WindowW = screen.basewidth;
+    WindowH = screen.baseheight;
     newview = oldview = viewsize;
     DrawChangeView (oldview);
     MenuFadeIn ();
@@ -2670,8 +2838,7 @@ CP_ChangeView (int blank)
         {
             SD_PlaySound (ESCPRESSEDSND);
             MenuFadeOut ();
-            if(screenHeight % 200 != 0)
-                VW_ClearScreen(0);
+            ClearMenuBorders ();
             return 0;
         }
     }
@@ -2686,8 +2853,7 @@ CP_ChangeView (int blank)
 
     ShootSnd ();
     MenuFadeOut ();
-    if(screenHeight % 200 != 0)
-        VW_ClearScreen(0);
+    ClearMenuBorders ();
 
     return 0;
 }
@@ -2700,8 +2866,10 @@ CP_ChangeView (int blank)
 void
 DrawChangeView (int view)
 {
+    VW_SetBufferOffset (0);     // treat it as a 3D renderer screen
+
     if (view != 21)
-        VW_Bar (0,basescreenHeight - STATUSLINES,basescreenWidth,STATUSLINES,bordercol);
+        VW_Bar (0,screen.baseheight - STATUSLINES,screen.basewidth,STATUSLINES,bordercol);
 
 #ifdef JAPAN
     VW_DrawPic (0,0,S_CHANGEPIC);
@@ -2710,10 +2878,9 @@ DrawChangeView (int view)
 #else
     ShowViewSize (view);
 
-    PrintY = basescreenHeight - (STATUSLINES - 1);
-    WindowX = 0;
-    WindowY = 320;                                  // TODO: Check this!
-    SETFONTCOLOR (HIGHLIGHT, BKGDCOLOR);
+    WindowX = screen.basewidth;
+    WindowY = PrintY = screen.baseheight - (STATUSLINES - 1);
+    SETFONTCOLOR (HIGHLIGHT,BKGDCOLOR);
 
     US_CPrint (STR_SIZE1 "\n");
     US_CPrint (STR_SIZE2 "\n");
@@ -2870,6 +3037,28 @@ ClearMScreen (void)
 }
 
 
+/*
+===================
+=
+= ClearMenuBorders
+=
+===================
+*/
+
+void ClearMenuBorders (void)
+{
+    if (screen.heightoffset)
+    {
+        VW_SetBufferOffset (0);    // draw to a full screen
+
+        VW_Bar (0,0,screen.basewidth,screen.heightoffset,BLACK);
+        VW_Bar (0,screen.baseheight - screen.heightoffset,screen.basewidth,screen.heightoffset,BLACK);
+
+        VW_SetBufferOffset (screen.heightoffset);
+    }
+}
+
+
 ////////////////////////////////////////////////////////////////////
 //
 // Draw a window for a menu
@@ -2901,14 +3090,11 @@ DrawOutline (int x, int y, int w, int h, int color1, int color2)
 void
 SetupControlPanel (void)
 {
-    //
-    // CACHE SOUNDS
-    //
+    ClearMenuBorders ();
+
     SETFONTCOLOR (TEXTCOLOR, BKGDCOLOR);
     fontnumber = 1;
-    WindowH = 200;
-    if(screenHeight % 200 != 0)
-        VW_ClearScreen(0);
+    WindowH = screen.baseheight - (screen.heightoffset * 2);
 
     if (!ingame)
         CA_LoadAllSounds ();
@@ -3374,7 +3560,7 @@ ReadAnyControl (ControlInfo * ci)
 
     IN_ReadControl (ci);
 
-    if (mouseenabled && GrabInput)
+    if (mouseenabled && (screen.flags & SC_INPUTGRABBED))
     {
         int mousex, mousey, buttons;
 
