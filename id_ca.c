@@ -859,33 +859,14 @@ void CAL_ExpandGrChunk (int chunk, byte *source)
 {
     int32_t    expanded;
 
+    //
+    // expanded sizes of tile8s are implicit,
+    // everything else has an explicit 4 byte size
+    //
     if (chunk >= STARTTILE8 && chunk < STARTEXTERNS)
-    {
-        //
-        // expanded sizes of tile8/16/32 are implicit
-        //
-
-#define BLOCK           64
-#define MASKBLOCK       128
-
-        if (chunk<STARTTILE8M)          // tile 8s are all in one chunk!
-            expanded = BLOCK*NUMTILE8;
-        else if (chunk<STARTTILE16)
-            expanded = MASKBLOCK*NUMTILE8M;
-        else if (chunk<STARTTILE16M)    // all other tiles are one/chunk
-            expanded = BLOCK*4;
-        else if (chunk<STARTTILE32)
-            expanded = MASKBLOCK*4;
-        else if (chunk<STARTTILE32M)
-            expanded = BLOCK*16;
-        else
-            expanded = MASKBLOCK*16;
-    }
+        expanded = 64*NUMTILE8;     // tile 8s are all in one chunk!
     else
     {
-        //
-        // everything else has an explicit size longword
-        //
         expanded = ReadLong(source);
         source += sizeof(expanded);
     }
