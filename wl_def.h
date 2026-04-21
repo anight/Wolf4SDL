@@ -140,6 +140,12 @@ void Quit (const char *errorStr, ...);
 =============================================================================
 */
 
+#ifdef DEMOSEXTERN
+    #define MAXDEMOS    NUMDEMOS
+#else
+    #define MAXDEMOS    10
+#endif
+
 #define MAXTICS 10
 #define DEMOTICS        4
 
@@ -865,16 +871,18 @@ enum buttontypes
     bt_readypistol,
     bt_readymachinegun,
     bt_readychaingun,
-    bt_nextweapon,
-    bt_prevweapon,
-    bt_esc,
-    bt_pause,
+    bt_moveup,
+    bt_movedown,
     bt_strafeleft,
     bt_straferight,
     bt_moveforward,
     bt_movebackward,
     bt_turnleft,
     bt_turnright,
+    bt_nextweapon,
+    bt_prevweapon,
+    bt_esc,
+    bt_pause,
 
     NUMBUTTONS
 };
@@ -1033,7 +1041,7 @@ void    DrawPlayScreen (void);
 void    DrawPlayBorderSides (void);
 void    ShowStatusBar (void);
 
-void    PlayDemo (int demonumber);
+int     PlayDemo (int demonumber);
 void    RecordDemo (void);
 
 #define ClearMemory SD_StopDigitized
@@ -1090,8 +1098,7 @@ extern  int         lastgamemusicoffset;
 //
 // control info
 //
-extern  boolean     mouseenabled,joystickenabled;
-extern  int         dirscan[4];
+extern  boolean     mouseenabled,joystickenabled,freelookenabled;
 extern  int         buttonscan[NUMBUTTONS];
 extern  int         buttonmouse[4];
 extern  int         buttonjoy[32];
@@ -1103,7 +1110,7 @@ extern  int         viewsize;
 //
 // current user input
 //
-extern  int         controlx,controly;              // range from -100 to 100
+extern  int         controlx,controly,controlturnx;     // range from -100 to 100
 extern  boolean     buttonstate[NUMBUTTONS];
 
 extern  boolean     demorecord,demoplayback;

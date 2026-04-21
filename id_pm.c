@@ -61,8 +61,7 @@ void PM_Startup (void)
 
     fread (pageLengths,sizeof(*pageLengths),ChunksInFile,file);
 
-    fseek (file,0,SEEK_END);
-    filesize = ftell(file);
+    filesize = CA_GetFileLength(file);
     datasize = filesize - pageOffsets[0];
 
     if (datasize < 0)

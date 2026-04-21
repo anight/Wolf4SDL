@@ -141,6 +141,9 @@ CP_itemtype CtlMenu[] = {
 #else
     {0, STR_MOUSEEN, 0},
     {0, STR_JOYEN, 0},
+#ifndef CLASSIC_MENU
+    {0, STR_FREELOOKEN, 0},
+#endif
     {0, STR_SENS, MouseSensitivity},
     {1, STR_CUSTOM, CustomControls},
 #ifndef CLASSIC_MENU
@@ -286,6 +289,13 @@ static int pickquick;
 static char SaveGameNames[10][MaxGameName];
 static char SaveName[13] = "savegam?.";
 
+char mbarray[4][3] = { "b0", "b1", "b2", "b3", };
+int8_t order[4] = { bt_run, bt_use, bt_attack, bt_strafe, };
+#ifndef CLASSIC_MENU
+int moveorder[4] = { bt_strafeleft, bt_straferight, bt_moveup, bt_movedown, };
+#else
+int moveorder[4] = { bt_turnleft, bt_turnright, bt_moveforward, bt_movebackward, };
+#endif
 
 ////////////////////////////////////////////////////////////////////
 //
@@ -1676,7 +1686,14 @@ CP_Control (int blank)
                 CusItems.curpos = -1;
                 ShootSnd ();
                 break;
-
+#ifndef CLASSIC_MENU
+            case CTL_FREELOOKENABLE:
+                freelookenabled ^= 1;
+                DrawCtlScreen ();
+                CusItems.curpos = -1;
+                ShootSnd ();
+                break;
+#endif
             case CTL_MOUSESENS:
             case CTL_CUSTOMIZE:
 #ifndef CLASSIC_MENU
@@ -1849,6 +1866,9 @@ DrawCtlScreen (void)
         CtlMenu[CTL_MOUSESENS].active = CtlMenu[CTL_MOUSEENABLE].active = 1;
     }
 
+#ifndef CLASSIC_MENU
+    CtlMenu[CTL_FREELOOKENABLE].active =
+#endif
     CtlMenu[CTL_MOUSESENS].active = mouseenabled;
 
     DrawMenu (&CtlItems, CtlMenu);
@@ -1862,6 +1882,11 @@ DrawCtlScreen (void)
 
     VW_DrawPic (x,y,selectedpic[joystickenabled != 0]);
 
+#ifndef CLASSIC_MENU
+    y += 13;
+
+    VW_DrawPic (x,y,selectedpic[freelookenabled != 0]);
+#endif
     //
     // PICK FIRST AVAILABLE SPOT
     //
@@ -2047,12 +2072,6 @@ void DrawDisplayMenu (screen_t *scr)
 // CUSTOMIZE CONTROLS
 //
 ////////////////////////////////////////////////////////////////////
-enum
-{ FIRE, STRAFE, RUN, OPEN };
-char mbarray[4][3] = { "b0", "b1", "b2", "b3" };
-int8_t order[4] = { RUN, OPEN, FIRE, STRAFE };
-
-
 int
 CustomControls (int blank)
 {
@@ -2141,10 +2160,6 @@ DefineKeyMove (void)
 //
 // ENTER CONTROL DATA FOR ANY TYPE OF CONTROL
 //
-enum
-{ FWRD, RIGHT, BKWD, LEFT };
-int moveorder[4] = { LEFT, RIGHT, FWRD, BKWD };
-
 void
 EnterCtrlData (int index, CustomCtrls * cust, void (*DrawRtn) (int), void (*PrintRtn) (int),
                int type)
@@ -2311,7 +2326,7 @@ EnterCtrlData (int index, CustomCtrls * cust, void (*DrawRtn) (int), void (*Prin
                     case KEYBOARDMOVE:
                         if (LastScan && LastScan != sc_Escape)
                         {
-                            dirscan[moveorder[which]] = LastScan;
+                            buttonscan[moveorder[which]] = LastScan;
                             picked = 1;
                             ShootSnd ();
                             IN_ClearKeysDown ();
@@ -2760,7 +2775,7 @@ void
 PrintCustKeys (int i)
 {
     PrintX = CST_START + CST_SPC * i;
-    US_Print ((const char *) IN_GetScanName (dirscan[moveorder[i]]));
+    US_Print ((const char *) IN_GetScanName (buttonscan[moveorder[i]]));
 }
 
 void

@@ -29,6 +29,8 @@ extern  char  audioext[5];
 
 //===========================================================================
 
+int32_t CA_GetFileLength (FILE *file);
+
 void CA_LoadFile (const char *filename, void **ptr);
 void CA_WriteFile (const char *filename, void *ptr, int32_t length);
 

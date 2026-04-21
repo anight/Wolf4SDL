@@ -51,11 +51,22 @@ unsigned tics;
 //
 // control info
 //
-boolean mouseenabled, joystickenabled;
-int dirscan[4] = { sc_UpArrow, sc_RightArrow, sc_DownArrow, sc_LeftArrow };
-int buttonscan[NUMBUTTONS] = { sc_Control, sc_Alt, sc_LShift, sc_Space, sc_1, sc_2, sc_3, sc_4 };
-int buttonmouse[4] = { bt_attack, bt_strafe, bt_use, bt_nobutton };
-int buttonjoy[32] = {
+boolean mouseenabled,joystickenabled,freelookenabled;
+
+int     buttonscan[NUMBUTTONS] =
+{
+#ifndef CLASSIC_MENU
+    sc_Control,sc_Alt,sc_LShift,sc_Space,sc_1,sc_2,sc_3,sc_4,
+    sc_W,sc_S,sc_A,sc_D,sc_UpArrow,sc_DownArrow,sc_LeftArrow,sc_RightArrow,
+#else
+    sc_Control,sc_Alt,sc_LShift,sc_Space,sc_1,sc_2,sc_3,sc_4,
+    sc_None,sc_None,sc_None,sc_None,sc_UpArrow,sc_DownArrow,sc_LeftArrow,sc_RightArrow,
+#endif
+    sc_None,sc_None,sc_None,sc_None,
+};
+
+int     buttonmouse[4] = { bt_attack, bt_strafe, bt_use, bt_nobutton };
+int     buttonjoy[32] = {
 #ifdef _arch_dreamcast
     bt_attack, bt_strafe, bt_use, bt_run, bt_esc, bt_prevweapon, bt_nobutton, bt_nextweapon,
     bt_pause, bt_strafeleft, bt_straferight, bt_nobutton, bt_nobutton, bt_nobutton, bt_nobutton, bt_nobutton,
@@ -73,12 +84,11 @@ boolean buttonheld[NUMBUTTONS];
 
 boolean demorecord, demoplayback;
 int8_t *demoptr, *lastdemoptr;
-void   *demobuffer;
 
 //
 // current user input
 //
-int controlx, controly;         // range from -100 to 100 per tic
+int controlx,controly,controlturnx;         // range from -100 to 100 per tic
 boolean buttonstate[NUMBUTTONS];
 
 int lastgamemusicoffset = 0;
@@ -311,14 +321,30 @@ void PollKeyboardMove (void)
 {
     int delta = buttonstate[bt_run] ? RUNMOVE * tics : BASEMOVE * tics;
 
-    if (Keyboard[dirscan[di_north]])
+    if (buttonstate[bt_moveup] || buttonstate[bt_moveforward])
         controly -= delta;
-    if (Keyboard[dirscan[di_south]])
+    if (buttonstate[bt_movedown] || buttonstate[bt_movebackward])
         controly += delta;
-    if (Keyboard[dirscan[di_west]])
+    if (buttonstate[bt_strafeleft])
         controlx -= delta;
-    if (Keyboard[dirscan[di_east]])
+    if (buttonstate[bt_straferight])
         controlx += delta;
+
+    if (buttonstate[bt_turnleft])
+    {
+        if (buttonstate[bt_strafe])
+            controlx -= delta;
+        else
+            controlturnx -= delta;
+    }
+
+    if (buttonstate[bt_turnright])
+    {
+        if (buttonstate[bt_strafe])
+            controlx += delta;
+        else
+            controlturnx += delta;
+    }
 }
 
 
@@ -336,8 +362,15 @@ void PollMouseMove (void)
 
     SDL_GetRelativeMouseState(&mousexmove, &mouseymove);
 
-    controlx += mousexmove * 10 / (13 - mouseadjustment);
-    controly += mouseymove * 20 / (13 - mouseadjustment);
+    controlturnx += (mousexmove * 10) / (13 - mouseadjustment);
+
+    if (!freelookenabled)
+    {
+        if (buttonstate[bt_strafe])
+            controlx += (mousexmove * 10) / (13 - mouseadjustment);
+
+        controly += (mouseymove * 20) / (13 - mouseadjustment);
+    }
 }
 
 
@@ -358,9 +391,9 @@ void PollJoystickMove (void)
     int delta = buttonstate[bt_run] ? RUNMOVE * tics : BASEMOVE * tics;
 
     if (joyx > 64 || buttonstate[bt_turnright])
-        controlx += delta;
+        controlturnx += delta;
     else if (joyx < -64  || buttonstate[bt_turnleft])
-        controlx -= delta;
+        controlturnx -= delta;
     if (joyy > 64 || buttonstate[bt_movebackward])
         controly += delta;
     else if (joyy < -64 || buttonstate[bt_moveforward])
@@ -374,8 +407,8 @@ void PollJoystickMove (void)
 =
 = Gets user or demo input, call once each frame
 =
-= controlx              set between -100 and 100 per tic
-= controly
+= controlx,controly     set between -100 and 100 per tic
+= controlturnx          horizontal axis for turning
 = buttonheld[]  the state of the buttons LAST frame
 = buttonstate[] the state of the buttons THIS frame
 =
@@ -385,7 +418,7 @@ void PollJoystickMove (void)
 void PollControls (void)
 {
     int max, min, i;
-    byte buttonbits;
+    uint32_t buttonbits;
 
     IN_ProcessEvents();
 
@@ -409,8 +442,7 @@ void PollControls (void)
     else
         CalcTics ();
 
-    controlx = 0;
-    controly = 0;
+    controlx = controly = controlturnx = 0;
     memcpy (buttonheld, buttonstate, sizeof (buttonstate));
     memset (buttonstate, 0, sizeof (buttonstate));
 
@@ -419,7 +451,9 @@ void PollControls (void)
         //
         // read commands from demo buffer
         //
-        buttonbits = *demoptr++;
+        buttonbits = ReadLong(demoptr);
+        demoptr += sizeof(buttonbits);
+
         for (i = 0; i < NUMBUTTONS; i++)
         {
             buttonstate[i] = buttonbits & 1;
@@ -428,12 +462,14 @@ void PollControls (void)
 
         controlx = *demoptr++;
         controly = *demoptr++;
+        controlturnx = *demoptr++;
 
-        if (demoptr == lastdemoptr)
+        if (demoptr >= lastdemoptr)
             playstate = ex_completed;   // demo is done
 
-        controlx *= (int) tics;
-        controly *= (int) tics;
+        controlx *= (int)tics;
+        controly *= (int)tics;
+        controlturnx *= (int)tics;
 
         return;
     }
@@ -466,6 +502,7 @@ void PollControls (void)
 //
     max = 100 * tics;
     min = -max;
+
     if (controlx > max)
         controlx = max;
     else if (controlx < min)
@@ -476,38 +513,47 @@ void PollControls (void)
     else if (controly < min)
         controly = min;
 
+    if (controlturnx > max)
+        controlturnx = max;
+    else if (controlturnx < min)
+        controlturnx = min;
+
     if (demorecord)
     {
         //
         // save info out to demo buffer
         //
-        controlx /= (int) tics;
-        controly /= (int) tics;
+        controlx /= (int)tics;
+        controly /= (int)tics;
+        controlturnx /= (int)tics;
 
         buttonbits = 0;
 
-        // TODO: Support 32-bit buttonbits
         for (i = NUMBUTTONS - 1; i >= 0; i--)
         {
             buttonbits <<= 1;
+
             if (buttonstate[i])
                 buttonbits |= 1;
         }
 
-        *demoptr++ = buttonbits;
+        for (i = 0; i < sizeof(buttonbits); i++)
+            *demoptr++ = (int8_t)(buttonbits >> (i << 3));
+
         *demoptr++ = controlx;
         *demoptr++ = controly;
+        *demoptr++ = controlturnx;
 
-        if (demoptr >= lastdemoptr - 8)
+        if (demoptr >= lastdemoptr)
             playstate = ex_completed;
         else
         {
-            controlx *= (int) tics;
-            controly *= (int) tics;
+            controlx *= (int)tics;
+            controly *= (int)tics;
+            controlturnx *= (int)tics;
         }
     }
 }
-
 
 
 //==========================================================================

@@ -219,6 +219,7 @@ void ReadConfig(void)
         fread (&saveddigimode,sizeof(saveddigimode),1,file);
 
         fread (&mouseenabled,sizeof(mouseenabled),1,file);
+        fread (&freelookenabled,sizeof(freelookenabled),1,file);
         fread (&joystickenabled,sizeof(joystickenabled),1,file);
         boolean dummyJoypadEnabled;
         fread (&dummyJoypadEnabled,sizeof(dummyJoypadEnabled),1,file);
@@ -227,7 +228,6 @@ void ReadConfig(void)
         int dummyJoystickPort = 0;
         fread (&dummyJoystickPort,sizeof(dummyJoystickPort),1,file);
 
-        fread (dirscan,sizeof(dirscan),1,file);
         fread (buttonscan,sizeof(buttonscan),1,file);
         fread (buttonmouse,sizeof(buttonmouse),1,file);
         fread (buttonjoy,sizeof(buttonjoy),1,file);
@@ -259,7 +259,9 @@ void ReadConfig(void)
 
         if(mouseenabled) mouseenabled=true;
         if(joystickenabled) joystickenabled=true;
-
+#ifdef CLASSIC_MENU
+        freelookenabled = false;
+#endif
         if(mouseadjustment<0) mouseadjustment=0;
         else if(mouseadjustment>9) mouseadjustment=9;
 
@@ -277,7 +279,9 @@ void ReadConfig(void)
 noconfig:
         mouseenabled = true;
         joystickenabled = true;
-
+#ifndef CLASSIC_MENU
+        freelookenabled = true;
+#endif
         viewsize = 19;                          // start with a good size
         mouseadjustment=5;
 
@@ -320,6 +324,7 @@ void WriteConfig(void)
         fwrite (&DigiMode,sizeof(DigiMode),1,file);
 
         fwrite (&mouseenabled,sizeof(mouseenabled),1,file);
+        fwrite (&freelookenabled,sizeof(freelookenabled),1,file);
         fwrite (&joystickenabled,sizeof(joystickenabled),1,file);
         boolean dummyJoypadEnabled = false;
         fwrite (&dummyJoypadEnabled,sizeof(dummyJoypadEnabled),1,file);
@@ -328,7 +333,6 @@ void WriteConfig(void)
         int dummyJoystickPort = 0;
         fwrite (&dummyJoystickPort,sizeof(dummyJoystickPort),1,file);
 
-        fwrite (dirscan,sizeof(dirscan),1,file);
         fwrite (buttonscan,sizeof(buttonscan),1,file);
         fwrite (buttonmouse,sizeof(buttonmouse),1,file);
         fwrite (buttonjoy,sizeof(buttonjoy),1,file);
@@ -1501,7 +1505,6 @@ void Quit (const char *errorStr, ...)
 =====================
 */
 
-
 static void DemoLoop()
 {
     int LastDemo = 0;
@@ -1610,12 +1613,16 @@ static void DemoLoop()
 //
 // demo
 //
-
-            #ifndef SPEARDEMO
-            PlayDemo (LastDemo++%4);
-            #else
-            PlayDemo (0);
-            #endif
+            LastDemo = PlayDemo(LastDemo);
+#ifndef DEMOSEXTERN
+            if (LastDemo < 0)
+            {
+                LastDemo = 0;
+                VW_FadeOut ();
+                continue;
+            }
+#endif
+            LastDemo %= MAXDEMOS;
 
             if (playstate == ex_abort)
                 break;
@@ -1628,12 +1635,15 @@ static void DemoLoop()
 
 #ifdef DEBUGKEYS
         if (Keyboard[sc_Tab] && param_debugmode)
+        {
             RecordDemo ();
+            VW_FadeOut ();
+            ClearMenuBorders ();
+            StartCPMusic (INTROSONG);
+        }
         else
-            US_ControlPanel (0);
-#else
-        US_ControlPanel (0);
 #endif
+            US_ControlPanel (0);
 
         if (startgame || loadedgame)
         {

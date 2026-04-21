@@ -1131,9 +1131,9 @@ void ViewMap (void)
         //
         PollControls ();
 
-        if (controlx < 0 && maporgx > 0)
+        if ((controlx < 0 || controlturnx < 0) && maporgx > 0)
             maporgx--;
-        if (controlx > 0 && maporgx < mapwidth - viewtilex)
+        if ((controlx > 0 || controlturnx > 0) && maporgx < mapwidth - viewtilex)
             maporgx++;
         if (controly < 0 && maporgy > 0)
             maporgy--;

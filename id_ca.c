@@ -116,6 +116,27 @@ static int32_t GRFILEPOS(const size_t idx)
 =============================================================================
 */
 
+
+/*
+==========================
+=
+= CA_GetFileLength
+=
+==========================
+*/
+
+int32_t CA_GetFileLength (FILE *file)
+{
+    int32_t length;
+
+    fseek (file,0,SEEK_END);
+    length = ftell(file);
+    fseek (file,0,SEEK_SET);
+
+    return length;
+}
+
+
 /*
 ============================
 =
@@ -181,9 +202,7 @@ void CA_LoadFile (const char *filename, void **ptr)
     if (!file)
         CA_CannotOpen (filename);
 
-    fseek (file,0,SEEK_END);
-    size = ftell(file);
-    fseek (file,0,SEEK_SET);
+    size = CA_GetFileLength(file);
 
     *ptr = SafeMalloc(size);
 

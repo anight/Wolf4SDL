@@ -264,6 +264,9 @@ enum ctrlitemtype
 {
     CTL_MOUSEENABLE,
     CTL_JOYENABLE,
+#ifndef CLASSIC_MENU
+    CTL_FREELOOKENABLE,
+#endif
     CTL_MOUSESENS,
     CTL_CUSTOMIZE,
 #ifndef CLASSIC_MENU

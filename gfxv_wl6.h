@@ -197,6 +197,8 @@ enum graphicnums
 #define NUMTILE32    0
 #define NUMTILE32M   0
 #define NUMEXTERNS   13
+#define NUMDEMOS     (T_DEMO3 - T_DEMO0 + 1)
+
 //
 // File offsets for data items
 //

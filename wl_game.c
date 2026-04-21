@@ -991,27 +991,87 @@ void ShowStatusBar (void)
 /*
 ==================
 =
-= StartDemoRecord
+= PatchDemoChunk
 =
 ==================
 */
 
+int8_t *PatchDemoChunk (int8_t *chunk)
+{
+    int    level,length,newlength;
+    int    cx,cy,turnx,buttons;
+    int8_t *newdemo,*work;
+
+    level = *chunk++;
+    length = ReadShort(chunk) - 4;
+    chunk += 3;
+
+    newlength = 8 + length + ((length / 3) * 4);
+
+    newdemo = SafeMalloc(newlength);
+    work = newdemo + 8;     // leave space for header
+
+    while (length)
+    {
+        buttons = *chunk++;
+        cx = *chunk++;
+        cy = *chunk++;
+
+        //
+        // write buttons byte followed by 3 zero bytes
+        //
+        *work++ = buttons;
+        *work++ = 0;
+        *work++ = 0;
+        *work++ = 0;
+
+        //
+        // if we're not strafing, swap turnx with cx
+        //
+        if (buttons & (1 << bt_strafe))
+            turnx = 0;
+        else
+        {
+            turnx = cx;
+            cx = 0;
+        }
+
+        *work++ = cx;
+        *work++ = cy;
+        *work++ = turnx;
+
+        length -= 3;
+    }
+
+    if ((int)work - (int)newdemo != newlength)
+        Quit ("New demo length does not match!");
+
+    work = newdemo;
+
+    //
+    // header:
+    // 4 zero bytes to mark a new format
+    // 1 byte for the level
+    // 2 bytes for the length
+    // 1 unused zero byte
+    //
+    *work++ = 0;
+    *work++ = 0;
+    *work++ = 0;
+    *work++ = 0;
+    *work++ = level;
+    *work++ = (int8_t)newlength;
+    *work++ = (int8_t)(newlength >> 8);
+    *work++ = 0;
+
+    return newdemo;
+}
+
+
 char    demoname[13] = "DEMO?.";
 
 #ifndef REMDEBUG
-#define MAXDEMOSIZE     8192
-
-void StartDemoRecord (int levelnumber)
-{
-    demobuffer = SafeMalloc(MAXDEMOSIZE);
-    demoptr = (int8_t *) demobuffer;
-    lastdemoptr = demoptr+MAXDEMOSIZE;
-
-    *demoptr = levelnumber;
-    demoptr += 4;                           // leave space for length
-    demorecord = true;
-}
-
+#define MAXDEMOSIZE     16384
 
 /*
 ==================
@@ -1021,20 +1081,16 @@ void StartDemoRecord (int levelnumber)
 ==================
 */
 
-void FinishDemoRecord (void)
+void FinishDemoRecord (int8_t *demobuffer)
 {
-    int32_t    length,level;
+    int    length,level;
 
-    demorecord = false;
+    length = (int)demoptr - (int)demobuffer;
 
-    length = (int32_t) (demoptr - (int8_t *)demobuffer);
+    demoptr = demobuffer + 5;
+    *demoptr++ = (int8_t)length;
+    *demoptr++ = (int8_t)(length >> 8);
 
-    demoptr = ((int8_t *)demobuffer)+1;
-    demoptr[0] = (int8_t) length;
-    demoptr[1] = (int8_t) (length >> 8);
-    demoptr[2] = 0;
-
-    VW_FadeIn();
     CenterWindow(24,3);
     PrintY+=6;
     fontnumber=0;
@@ -1051,8 +1107,6 @@ void FinishDemoRecord (void)
             CA_WriteFile (demoname,demobuffer,length);
         }
     }
-
-    SafeFree (demobuffer);
 }
 
 //==========================================================================
@@ -1069,7 +1123,8 @@ void FinishDemoRecord (void)
 
 void RecordDemo (void)
 {
-    int level,esc,maps;
+    int  level,esc,maps;
+    void *demobuffer;
 
     CenterWindow(26,3);
     PrintY+=6;
@@ -1106,8 +1161,19 @@ void RecordDemo (void)
     gamestate.mapon = level;
 #endif
 
-    StartDemoRecord (level);
+    demobuffer = SafeMalloc(MAXDEMOSIZE);
+    demoptr = demobuffer;
+    lastdemoptr = &demoptr[MAXDEMOSIZE - 7];
 
+    *demoptr++ = 0;
+    *demoptr++ = 0;
+    *demoptr++ = 0;
+    *demoptr++ = 0;
+    *demoptr++ = level;
+    demoptr += 2;           // leave space for length
+    *demoptr++ = 0;
+
+    VW_SetBufferOffset (0);
     DrawPlayScreen ();
     VW_FadeIn ();
 
@@ -1121,13 +1187,16 @@ void RecordDemo (void)
 
     PlayLoop ();
 
-    demoplayback = false;
+    demorecord = false;
 
     StopMusic ();
-    VW_FadeOut ();
     ClearMemory ();
 
-    FinishDemoRecord ();
+    FinishDemoRecord (demobuffer);
+
+    SafeFree (demobuffer);
+
+    demoptr = NULL;
 }
 #else
 void FinishDemoRecord (void) {return;}
@@ -1148,36 +1217,69 @@ void RecordDemo (void) {return;}
 ==================
 */
 
-void PlayDemo (int demonumber)
+int PlayDemo (int demonumber)
 {
-    int length;
+    int  i,length;
+    void *demobuffer;
+    FILE *file;
 #ifdef DEMOSEXTERN
 // debug: load chunk
 #ifndef SPEARDEMO
-    int dems[4]={T_DEMO0,T_DEMO1,T_DEMO2,T_DEMO3};
+    int dems[NUMDEMOS]={T_DEMO0,T_DEMO1,T_DEMO2,T_DEMO3};
 #else
     int dems[1]={T_DEMO0};
 #endif
-
-    demoptr = (int8_t *) grsegs[dems[demonumber]];
+    demobuffer = grsegs[dems[demonumber]];
 #else
-    demoname[4] = '0'+demonumber;
-    CA_LoadFile (demoname,&demobuffer);
-    demoptr = (int8_t *)demobuffer;
+    for (i = 0; i < MAXDEMOS; i++)
+    {
+        demoname[4] = '0' + demonumber;
+
+        file = fopen(demoname,"rb");
+
+        if (file)
+            break;
+
+        if (++demonumber >= MAXDEMOS)
+            demonumber = 0;
+    }
+
+    if (!file)
+        return -1;      // no demo files
+
+    length = CA_GetFileLength(file);
+
+    demobuffer = SafeMalloc(length);
+
+    fread (demobuffer,length,1,file);
+    fclose (file);
 #endif
+    //
+    // is this an old demo chunk?
+    //
+    if (ReadLong(demobuffer))
+    {
+        demoptr = demobuffer;     // save pointer so it can be freed
+
+        demobuffer = PatchDemoChunk(demobuffer);
+#ifndef DEMOSEXTERN
+        SafeFree (demoptr);
+#endif
+    }
+
+    demoptr = (int8_t *)demobuffer + 4;
 
     NewGame (1,0);
     gamestate.mapon = *demoptr++;
     gamestate.difficulty = gd_hard;
     length = ReadShort(demoptr);
-    // TODO: Seems like the original demo format supports 16 MB demos
-    //       But T_DEM00 and T_DEM01 of Wolf have a 0xd8 as third length size...
     demoptr += 3;
-    lastdemoptr = demoptr-4+length;
+    lastdemoptr = (int8_t *)demobuffer + length;
 
     VW_FadeOut ();
 
     SETFONTCOLOR(0,15);
+    VW_SetBufferOffset (0);
     DrawPlayScreen ();
 
     startgame = false;
@@ -1191,11 +1293,14 @@ void PlayDemo (int demonumber)
 #ifndef DEMOSEXTERN
     SafeFree (demobuffer);
 #endif
+    demoptr = NULL;
 
     demoplayback = false;
 
     StopMusic ();
     ClearMemory ();
+
+    return demonumber + 1;
 }
 
 //==========================================================================
@@ -1431,9 +1536,6 @@ void GameLoop (void)
 
         StopMusic ();
         ingame = false;
-
-        if (demorecord && playstate != ex_warped)
-            FinishDemoRecord ();
 
         if (startgame || loadedgame)
         {
