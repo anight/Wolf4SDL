@@ -236,8 +236,8 @@ void DrawRain (void)
             xfrac = (viewx + FixedMul(basedist,viewcos)) - (xstep * prestep);
             yfrac = -(viewy - FixedMul(basedist,viewsin)) - (ystep * prestep);
 
-            tilex = (xfrac >> TILESHIFT) & (mapwidth - 1);
-            tiley = ~(yfrac >> TILESHIFT) & (mapheight - 1);
+            tilex = xfrac >> TILESHIFT;
+            tiley = ~yfrac >> TILESHIFT;
 
             //
             // is there a ceiling tile?
@@ -339,8 +339,8 @@ void DrawSnow (void)
             xfrac = (viewx + FixedMul(basedist,viewcos)) - (xstep * prestep);
             yfrac = -(viewy - FixedMul(basedist,viewsin)) - (ystep * prestep);
 
-            tilex = (xfrac >> TILESHIFT) & (mapwidth - 1);
-            tiley = ~(yfrac >> TILESHIFT) & (mapheight - 1);
+            tilex = xfrac >> TILESHIFT;
+            tiley = ~yfrac >> TILESHIFT;
 
             //
             // is there a ceiling tile?

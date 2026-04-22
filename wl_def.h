@@ -118,7 +118,7 @@ void Quit (const char *errorStr, ...);
 =============================================================================
 */
 
-#define MAPSPOT(x,y,plane) (mapsegs[(plane)][((y) << MAPSHIFT) + (x)])
+#define MAPSPOT(x,y,plane) (mapsegs[(plane)][mapylookup[(y)] + (x)])
 #define VALIDAREA(x)    ((x) >= AREATILE && (x) < (AREATILE + NUMAREAS))
 
 #define SIGN(x)         ((x) > 0 ? 1 : -1)
@@ -226,10 +226,6 @@ typedef uint8_t tiletype;
 #define VANG360         (VANG90*4)
 
 #define MINDIST         0x5800l
-
-#define MAPSHIFT        6
-#define MAPSIZE         (1 << MAPSHIFT)
-#define MAPAREA         (MAPSIZE * MAPSIZE)
 
 #define TEXTURESHIFT    6
 
@@ -1082,16 +1078,15 @@ extern  boolean     madenoise;
 extern  objtype     objlist[MAXACTORS];
 extern  objtype     *player,*objfreelist;
 
-extern  tiletype    tilemap[MAPSIZE][MAPSIZE];      // wall values only
-extern  bool        spotvis[MAPSIZE][MAPSIZE];
-extern  objtype     *actorat[MAPSIZE][MAPSIZE];
+extern  tiletype    *tilemap;                       // wall values only
+extern  bool        *spotvis;
+extern  objtype     **actorat;
 #ifdef REVEALMAP
-extern  bool        mapseen[MAPSIZE][MAPSIZE];
+extern  bool        *mapseen;
 #endif
 extern  boolean     singlestep,godmode,noclip,ammocheat,mapreveal;
 extern  int         extravbls;
 
-extern  word        mapwidth,mapheight;
 extern  unsigned    tics;
 extern  int32_t     lastgamemusicoffset;
 

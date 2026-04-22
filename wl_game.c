@@ -627,7 +627,7 @@ void SetupGameLevel (void)
     int  mapnum;
     word *map;
     word tile;
-
+    unsigned offset;
 
     if (!loadedgame)
     {
@@ -655,31 +655,45 @@ void SetupGameLevel (void)
 //
     mapnum = gamestate.mapon+10*gamestate.episode;
 
-    CA_CacheMap (mapnum);
-
-    mapwidth = mapheaderseg[mapnum]->width;
-    mapheight = mapheaderseg[mapnum]->height;
+    if (CA_CacheMap(mapnum))
+    {
+        tilemap = SafeRealloc(tilemap,maparea * sizeof(*tilemap));
+        actorat = SafeRealloc(actorat,maparea * sizeof(**actorat));
+        spotvis = SafeRealloc(spotvis,maparea * sizeof(*spotvis));
+#ifdef REVEALMAP
+        mapseen = SafeRealloc(mapseen,maparea * sizeof(*mapseen));
+#endif
+    }
 
 #ifdef USE_FEATUREFLAGS
-    // Temporary definition to make things clearer
-    #define MXX MAPSIZE - 1
+    //
+    // Read feature flags data from map corners
+    // and overwrite corners with adjacent tiles
+    //
+    map = mapsegs[0];
+    ffDataTopLeft = *map;
+    *map = *(map + 1);
 
-    // Read feature flags data from map corners and overwrite corners with adjacent tiles
-    ffDataTopLeft     = MAPSPOT(0,   0,   0); MAPSPOT(0,   0,   0) = MAPSPOT(1,       0,       0);
-    ffDataTopRight    = MAPSPOT(MXX, 0,   0); MAPSPOT(MXX, 0,   0) = MAPSPOT(MXX,     1,       0);
-    ffDataBottomRight = MAPSPOT(MXX, MXX, 0); MAPSPOT(MXX, MXX, 0) = MAPSPOT(MXX - 1, MXX,     0);
-    ffDataBottomLeft  = MAPSPOT(0,   MXX, 0); MAPSPOT(0,   MXX, 0) = MAPSPOT(0,       MXX - 1, 0);
+    map = &MAPSPOT(mapwidth - 1,0,0);
+    ffDataTopRight = *map;
+    *map = *(map + mapwidth);
 
-    #undef MXX
+    map = &MAPSPOT(mapwidth - 1,mapheight - 1,0);
+    ffDataBottomRight = *map;
+    *map = *(map - 1);
+
+    map = &MAPSPOT(0,mapheight - 1,0);
+    ffDataBottomLeft = *map;
+    *map = *(map - mapwidth);
 #endif
 
 //
 // copy the wall data to a data segment array
 //
-    memset (tilemap,0,sizeof(tilemap));
-    memset (actorat,0,sizeof(actorat));
+    memset (tilemap,0,maparea * sizeof(*tilemap));
+    memset (actorat,0,maparea * sizeof(**actorat));
 #ifdef REVEALMAP
-    memset (mapseen,0,sizeof(mapseen));
+    memset (mapseen,0,maparea * sizeof(*mapseen));
 #endif
     map = mapsegs[0];
     for (y=0;y<mapheight;y++)
@@ -687,17 +701,13 @@ void SetupGameLevel (void)
         for (x=0;x<mapwidth;x++)
         {
             tile = *map++;
+            offset = mapylookup[y] + x;
+
             if (tile < AMBUSHTILE)
             {
                 // solid wall
-                tilemap[x][y] = (byte) tile;
-                actorat[x][y] = (objtype *)(uintptr_t) tile;
-            }
-            else
-            {
-                // area floor
-                tilemap[x][y] = 0;
-                actorat[x][y] = 0;
+                tilemap[offset] = tile;
+                actorat[offset] = (objtype *)(uintptr_t) tile;
             }
         }
     }

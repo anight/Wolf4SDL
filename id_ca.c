@@ -38,21 +38,14 @@ Id Software Caching Manager
 =============================================================================
 */
 
-word    *mapsegs[MAPPLANES];
-maptype *mapheaderseg[NUMMAPS];
-byte    *audiosegs[NUMSNDCHUNKS];
-byte    *grsegs[NUMCHUNKS];
+unsigned *mapylookup;
+word     *mapsegs[MAPPLANES];
+byte     *audiosegs[NUMSNDCHUNKS];
+byte     *grsegs[NUMCHUNKS];
 
-mapfiletype *tinf;
+unsigned mapwidth,mapheight,maparea;
 
-/*
-=============================================================================
-
-                             LOCAL VARIABLES
-
-=============================================================================
-*/
-
+char mapname[MAPNAMESIZE + 1];
 char extension[5]; // Need a string, not constant to change cache files
 
 static const char gheadname[] = "vgahead.";
@@ -75,6 +68,11 @@ static const char afilename[] = "audiot.";
 
 =============================================================================
 */
+
+void CA_CannotOpen (const char *string)
+{
+    Quit ("Can't open %s: %s",string,strerror(errno));
+}
 
 
 /*
@@ -499,74 +497,6 @@ void CAL_SetupGrFile (void)
 /*
 ======================
 =
-= CAL_SetupMapFile
-=
-======================
-*/
-
-void CAL_SetupMapFile (void)
-{
-    int     i;
-    int32_t pos;
-    FILE *file;
-    char fname[13];
-
-//
-// load maphead.ext (offsets and tileinfo for map file)
-//
-    snprintf (fname,sizeof(fname),"%s%s",mheadname,extension);
-
-    file = fopen(fname,"rb");
-
-    if (!file)
-        CA_CannotOpen (fname);
-
-    tinf = SafeMalloc(sizeof(*tinf));
-
-    fread (tinf,sizeof(*tinf),1,file);
-    fclose (file);
-
-//
-// open the data file
-//
-    snprintf (fname,sizeof(fname),"%s%s",mfilename,extension);
-
-    file = fopen(fname,"rb");
-
-    if (!file)
-        CA_CannotOpen (fname);
-
-//
-// load all map header
-//
-    for (i=0;i<NUMMAPS;i++)
-    {
-        pos = tinf->headeroffsets[i];
-        if (pos<0)                          // $FFFFFFFF start is a sparse map
-            continue;
-
-        mapheaderseg[i] = SafeMalloc(sizeof(*mapheaderseg[i]));
-
-        fseek (file,pos,SEEK_SET);
-        fread (mapheaderseg[i],sizeof(*mapheaderseg[i]),1,file);
-    }
-
-    fclose (file);
-
-//
-// allocate space for 3 64*64 planes
-//
-    for (i=0;i<MAPPLANES;i++)
-        mapsegs[i] = SafeMalloc(MAPAREA * sizeof(*mapsegs[i]));
-}
-
-
-//==========================================================================
-
-
-/*
-======================
-=
 = CAL_SetupAudioFile
 =
 ======================
@@ -679,7 +609,6 @@ void CAL_SetupAudioFile (void)
 
 void CA_Startup (void)
 {
-    CAL_SetupMapFile ();
     CAL_SetupGrFile ();
     CAL_SetupAudioFile ();
 }
@@ -704,9 +633,6 @@ void CA_Shutdown (void)
     for (i = 0; i < NUMCHUNKS; i++)
         SafeFree (grsegs[i]);
 
-    for (i = 0; i < NUMMAPS; i++)
-        SafeFree (mapheaderseg[i]);
-
     for (i = 0; i < MAPPLANES; i++)
         SafeFree (mapsegs[i]);
 
@@ -714,7 +640,6 @@ void CA_Shutdown (void)
         SafeFree (audiosegs[i]);
 
     SafeFree (pictable);
-    SafeFree (tinf);
 }
 
 
@@ -834,33 +759,46 @@ void CA_CacheGrChunks (int32_t *offset, huffnode *hufftable, FILE *grfile)
 }
 
 
-
-//==========================================================================
-
-
 /*
 ======================
 =
 = CA_CacheMap
 =
-= WOLF: This is specialized for a 64*64 map size
+= Returns true if it's a new map size
 =
 ======================
 */
 
-void CA_CacheMap (int mapnum)
+boolean CA_CacheMap (int mapnum)
 {
-    FILE     *file;
-    char     fname[13];
-    int32_t  pos,compressed;
-    int      plane;
-    word     *source = NULL;
-    word     *rlewtable = NULL;
-    int32_t  expanded;
+    maptype     mapheader;
+    mapfiletype fileheader;
+    FILE        *file;
+    char        fname[13];
+    int32_t     pos,compressed,expanded;
+    int         i;
+    unsigned    lastmapwidth,lastmapheight;
+    boolean     newmapsize;
+    word        *source = NULL;
+    word        *rlewtable = NULL;
 
-    if (mapheaderseg[mapnum]->width != MAPSIZE || mapheaderseg[mapnum]->height != MAPSIZE)
-        Quit ("CA_CacheMap: Map not %u*%u!",MAPSIZE,MAPSIZE);
+//
+// load maphead.ext (offsets for map file)
+//
+    snprintf (fname,sizeof(fname),"%s%s",mheadname,extension);
 
+    file = fopen(fname,"rb");
+
+    if (!file)
+        CA_CannotOpen (fname);
+
+    fread (&fileheader,sizeof(fileheader),1,file);
+
+    fclose (file);
+
+//
+// open the data file
+//
     snprintf (fname,sizeof(fname),"%s%s",mfilename,extension);
 
     file = fopen(fname,"rb");
@@ -868,16 +806,57 @@ void CA_CacheMap (int mapnum)
     if (!file)
         CA_CannotOpen (fname);
 
-//
-// load the planes into the allready allocated buffers
-//
-    for (plane = 0; plane < MAPPLANES; plane++)
+    pos = fileheader.mapstart[mapnum];
+
+    if (pos < 0)
+        Quit ("CA_CacheMap: Tried to load sparse map %d",mapnum);
+
+    fseek (file,pos,SEEK_SET);
+    fread (&mapheader,sizeof(mapheader),1,file);
+
+    lastmapwidth = mapwidth;
+    lastmapheight = mapheight;
+    mapwidth = mapheader.width;
+    mapheight = mapheader.height;
+    maparea = mapwidth * mapheight;
+
+    newmapsize = mapwidth != lastmapwidth || mapheight != lastmapheight;
+
+    if (newmapsize)
     {
-        pos = mapheaderseg[mapnum]->planestart[plane];
-        compressed = mapheaderseg[mapnum]->planelength[plane];
+        mapylookup = SafeRealloc(mapylookup,maparea * sizeof(*mapylookup));
+
+        for (i = 0; i < mapheight; i++)
+            mapylookup[i] = i * mapwidth;
+    }
+
+//
+// map names are NOT null-terminated, so copy the exact
+// length of the mapheader name buffer into the mapname
+// buffer
+//
+    memcpy (mapname,mapheader.name,sizeof(mapheader.name));
+    mapname[MAPNAMESIZE] = '\0';
+
+//
+// load the planes into the buffers
+//
+    for (i = 0; i < MAPPLANES; i++)
+    {
+        if (newmapsize)
+            mapsegs[i] = SafeRealloc(mapsegs[i],maparea * sizeof(*mapsegs[i]));
+
+        pos = mapheader.planestart[i];
+        compressed = mapheader.planelength[i];
 
         if (!compressed)
-            continue;    // empty plane
+        {
+            //
+            // empty plane
+            //
+            memset (mapsegs[i],0,maparea * sizeof(*mapsegs[i]));
+            continue;
+        }
 
         fseek (file,pos,SEEK_SET);
 
@@ -893,13 +872,13 @@ void CA_CacheMap (int mapnum)
         CAL_CarmackExpand ((byte *)(source + 1),rlewtable,expanded);
 
         expanded = *rlewtable;
-        CA_RLEWexpand (rlewtable + 1,mapsegs[plane],expanded,tinf->RLEWtag);
+        CA_RLEWexpand (rlewtable + 1,mapsegs[i],expanded,fileheader.RLEWtag);
 #else
         //
         // unRLEW
         //
         expanded = *source;
-        CA_RLEWexpand (source + 1,mapsegs[plane],expanded,tinf->RLEWtag);
+        CA_RLEWexpand (source + 1,mapsegs[i],expanded,fileheader.RLEWtag);
 #endif
     }
 
@@ -907,11 +886,6 @@ void CA_CacheMap (int mapnum)
     SafeFree (rlewtable);
 
     fclose (file);
-}
 
-//===========================================================================
-
-void CA_CannotOpen (const char *string)
-{
-    Quit ("Can't open %s!",string);
+    return newmapsize;
 }

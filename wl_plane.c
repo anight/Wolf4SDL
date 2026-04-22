@@ -86,8 +86,8 @@ void DrawSpan (int x1, int x2, int height)
         //
         // get tile coords of texture
         //
-        tilex = (xfrac >> TILESHIFT) & (mapwidth - 1);
-        tiley = (yfrac >> TILESHIFT) & (mapheight - 1);
+        tilex = xfrac >> TILESHIFT;
+        tiley = yfrac >> TILESHIFT;
 
         //
         // get floor & ceiling textures if it's a new tile

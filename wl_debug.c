@@ -146,11 +146,17 @@ void BasicOverhead (void)
     int       zoom,temp;
     int       offx,offy;
     uintptr_t tile;
+    unsigned  offset;
     int       color;
 
-    zoom = 128 / MAPSIZE;
+    //
+    // KS: this may not always be correct as it
+    // assumes the maps are square and might look
+    // bad for maps larger than 128x128
+    //
+    zoom = 128 / mapwidth;
     offx = 160;
-    offy = (160 - (MAPSIZE * zoom)) / 2;
+    offy = (160 - (mapwidth * zoom)) / 2;
 
 #ifdef MAPBORDER
     temp = viewsize;
@@ -164,7 +170,11 @@ void BasicOverhead (void)
     for (y = 0; y < mapheight; y++)
     {
         for (x = 0; x < mapwidth; x++)
-            VW_Bar ((x * zoom) + offx,(y * zoom) + offy,zoom,zoom,(byte)(uintptr_t)actorat[x][y]);
+        {
+            tile = (uintptr_t)actorat[mapylookup[y] + x];
+
+            VW_Bar ((x * zoom) + offx,(y * zoom) + offy,zoom,zoom,tile);
+        }
     }
 
     //
@@ -176,18 +186,20 @@ void BasicOverhead (void)
     {
         for (x = 0; x < mapwidth; x++)
         {
-            tile = (uintptr_t)actorat[x][y];
+            offset = mapylookup[y] + x;
+
+            tile = (uintptr_t)actorat[offset];
 
             if (ISPOINTER(tile) && ((objtype *)tile)->flags & FL_SHOOTABLE)
                 color = 72;
             else if (!tile || ISPOINTER(tile))
             {
-                if (spotvis[x][y])
+                if (spotvis[offset])
                     color = 111;
                 else
                     color = 0;      // nothing
             }
-            else if (MAPSPOT(x,y,1) == PUSHABLETILE)
+            else if (mapsegs[1][offset] == PUSHABLETILE)
                 color = 171;
             else if (tile == BIT_WALL)
                 color = 158;
@@ -448,6 +460,7 @@ int DebugKeys (void)
     boolean esc;
     int level;
     objtype *spot;
+    unsigned offset;
 
     if (Keyboard[sc_B])             // B = border color
     {
@@ -500,7 +513,9 @@ int DebugKeys (void)
 
     if (Keyboard[sc_F])             // F = facing spot
     {
-        spot = actorat[player->tilex][player->tiley];
+        offset = mapylookup[player->tiley] + player->tilex;
+
+        spot = actorat[offset];
 
         CenterWindow (15,9);
         snprintf (str,sizeof(str),"X: %d (%d)\n",player->x,player->x % TILEGLOBAL);
@@ -513,15 +528,15 @@ int DebugKeys (void)
         US_Print (str);
         snprintf (str,sizeof(str),"TileY: %u\n",player->tiley);
         US_Print (str);
-        snprintf (str,sizeof(str),"1: %u",tilemap[player->tilex][player->tiley]);
+        snprintf (str,sizeof(str),"1: %u",tilemap[offset]);
         US_Print (str);
         snprintf (str,sizeof(str)," 2:%.8X\n",(uintptr_t)spot);
         US_Print (str);
         snprintf (str,sizeof(str),"f 1: %u",player->areanumber);
         US_Print (str);
-        snprintf (str,sizeof(str)," 2: %u",MAPSPOT(player->tilex,player->tiley,1));
+        snprintf (str,sizeof(str)," 2: %u",mapsegs[1][offset]);
         US_Print (str);
-        snprintf (str,sizeof(str)," 3: %u",!ISPOINTER(spot) ? spotvis[player->tilex][player->tiley] : spot->flags);
+        snprintf (str,sizeof(str)," 3: %u",!ISPOINTER(spot) ? spotvis[offset] : spot->flags);
         US_Print (str);
 
         VW_UpdateScreen();
@@ -969,6 +984,7 @@ void OverheadRefresh (void)
     int16_t   endx,endy;
     int16_t   sx,sy,shapenum;
     uintptr_t tile;
+    unsigned  offset;
     statobj_t *statptr;
     objtype   *obj;
 
@@ -986,14 +1002,15 @@ void OverheadRefresh (void)
         {
             sx = (x - maporgx) * tilesize;
             sy = (y - maporgy) * tilesize;
+            offset = mapylookup[y] + x;
 #ifdef REVEALMAP
-            if (!mapseen[x][y] && !mapreveal)
+            if (!mapseen[offset] && !mapreveal)
             {
                 DrawMapFloor (sx,sy,BLACK);
                 continue;
             }
 #endif
-            tile = (uintptr_t)actorat[x][y];
+            tile = (uintptr_t)actorat[offset];
 
             if (tile)
             {
@@ -1002,7 +1019,7 @@ void OverheadRefresh (void)
                 //
                 if (tile < BIT_DOOR && tile != BIT_WALL)
                 {
-                    if (DebugOk && Keyboard[sc_P] && MAPSPOT(x,y,1) == PUSHABLETILE)
+                    if (DebugOk && Keyboard[sc_P] && mapsegs[1][offset] == PUSHABLETILE)
                         DrawMapFloor (sx,sy,COL_SECRET);
                     else
                         DrawMapWall (sx,sy,horizwall[tile]);
@@ -1020,7 +1037,7 @@ void OverheadRefresh (void)
                     {
                         obj = (objtype *)tile;
 
-                        if (spotvis[(byte)(obj->x >> TILESHIFT)][(byte)(obj->y >> TILESHIFT)])
+                        if (spotvis[mapylookup[obj->y >> TILESHIFT] + (obj->x >> TILESHIFT)])
                         {
                             shapenum = obj->state->shapenum;
 
@@ -1086,7 +1103,7 @@ void SetupMapView (void)
 #elif TEXTURESHIFT == 7
     tilesize >>= 1;
 #endif
-    tilemapratio = MAPSIZE / tilesize;
+    tilemapratio = mapwidth / tilesize;
     tilewallratio = TEXTURESIZE / tilesize;
 
     viewtilex = screen.width / tilesize;

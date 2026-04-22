@@ -438,20 +438,20 @@ boolean SaveTheGame (FILE *file, int x, int y)
     checksum = DoChecksum(LevelRatios,sizeof(LevelRatios),checksum);
 
     DiskFlopAnim (x,y);
-    fwrite (tilemap,sizeof(tilemap),1,file);
-    checksum = DoChecksum(tilemap,sizeof(tilemap),checksum);
+    fwrite (tilemap,maparea * sizeof(*tilemap),1,file);
+    checksum = DoChecksum(tilemap,maparea * sizeof(*tilemap),checksum);
 #ifdef REVEALMAP
     DiskFlopAnim (x,y);
-    fwrite (mapseen,sizeof(mapseen),1,file);
-    checksum = DoChecksum(mapseen,sizeof(mapseen),checksum);
+    fwrite (mapseen,maparea * sizeof(*mapseen),1,file);
+    checksum = DoChecksum(mapseen,maparea * sizeof(*mapseen),checksum);
 #endif
     DiskFlopAnim (x,y);
 
-    for (i = 0; i < mapwidth; i++)
+    for (j = 0; j < mapheight; j++)
     {
-        for (j = 0; j < mapheight; j++)
+        for (i = 0; i < mapwidth; i++)
         {
-            ob = actorat[i][j];
+            ob = actorat[mapylookup[j] + i];
 
             if (ISPOINTER(ob))
                 actnum = 0x8000 | (word)(ob - objlist);
@@ -546,6 +546,7 @@ boolean LoadTheGame (FILE *file, int x, int y)
     int       actnum = 0;
     word      laststatobjnum;
     word      *map,tile;
+    unsigned  offset;
     int32_t   checksum,oldchecksum;
     objtype   *newobj = NULL;
     objtype   nullobj;
@@ -566,26 +567,28 @@ boolean LoadTheGame (FILE *file, int x, int y)
     SetupGameLevel ();
 
     DiskFlopAnim (x,y);
-    fread (tilemap,sizeof(tilemap),1,file);
-    checksum = DoChecksum(tilemap,sizeof(tilemap),checksum);
+    fread (tilemap,maparea * sizeof(*tilemap),1,file);
+    checksum = DoChecksum(tilemap,maparea * sizeof(*tilemap),checksum);
 #ifdef REVEALMAP
     DiskFlopAnim (x,y);
-    fread (mapseen,sizeof(mapseen),1,file);
-    checksum = DoChecksum(mapseen,sizeof(mapseen),checksum);
+    fread (mapseen,maparea * sizeof(*mapseen),1,file);
+    checksum = DoChecksum(mapseen,maparea * sizeof(*mapseen),checksum);
 #endif
     DiskFlopAnim (x,y);
 
-    for (i = 0; i < mapwidth; i++)
+    for (j = 0; j < mapheight; j++)
     {
-        for (j = 0; j < mapheight; j++)
+        for (i = 0; i < mapwidth; i++)
         {
+            offset = mapylookup[j] + i;
+
             fread (&actnum,sizeof(word),1,file);
             checksum = DoChecksum(&actnum,sizeof(word),checksum);
 
             if (actnum & 0x8000)
-                actorat[i][j] = &objlist[actnum & 0x7fff];
+                actorat[offset] = &objlist[actnum & 0x7fff];
             else
-                actorat[i][j] = (objtype *)(uintptr_t)actnum;
+                actorat[offset] = (objtype *)(uintptr_t)actnum;
         }
     }
 
@@ -659,13 +662,15 @@ boolean LoadTheGame (FILE *file, int x, int y)
         //
         map = mapsegs[0];
 
-        for (y = 0; y < mapheight; y++)
+        for (j = 0; j < mapheight; j++)
         {
-            for (x = 0; x < mapwidth; x++)
+            for (i = 0; i < mapwidth; i++)
             {
+                offset = mapylookup[j] + i;
+
                 tile = *map;
 
-                if (MAPSPOT(x,y,1) == PUSHABLETILE && !tilemap[x][y] && !VALIDAREA(tile))
+                if (mapsegs[1][offset] == PUSHABLETILE && !tilemap[offset] && !VALIDAREA(tile))
                 {
                     if (VALIDAREA(*(map + 1)))
                         tile = *(map + 1);
@@ -677,7 +682,7 @@ boolean LoadTheGame (FILE *file, int x, int y)
                         tile = *(map - 1);
 
                     *map = tile;
-                    MAPSPOT(x,y,1) = 0;
+                    mapsegs[1][offset] = 0;
                 }
 
                 map++;
@@ -1484,6 +1489,12 @@ void Quit (const char *errorStr, ...)
     ShutdownId ();
     Shutdown3DRenderer ();
 
+    SafeFree (tilemap);
+    SafeFree (actorat);
+    SafeFree (spotvis);
+#ifdef REVEALMAP
+    SafeFree (mapseen);
+#endif
     if (ret)
         Error (error);
 

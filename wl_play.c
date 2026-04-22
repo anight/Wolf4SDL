@@ -33,17 +33,16 @@ objtype *player,*lastobj,*objfreelist;
 boolean singlestep,godmode,noclip,ammocheat,mapreveal;
 int     extravbls;
 
-tiletype tilemap[MAPSIZE][MAPSIZE]; // wall values only
-bool     spotvis[MAPSIZE][MAPSIZE];
-objtype *actorat[MAPSIZE][MAPSIZE];
+tiletype *tilemap;          // wall values only
+bool     *spotvis;
+objtype  **actorat;
 #ifdef REVEALMAP
-bool     mapseen[MAPSIZE][MAPSIZE];
+bool     *mapseen;
 #endif
 
 //
 // replacing refresh manager
 //
-word     mapwidth,mapheight;
 unsigned tics;
 
 //
@@ -1197,67 +1196,40 @@ void DoActor (objtype * ob)
         return;
 
     if (!(ob->flags & (FL_NONMARK | FL_NEVERMARK)))
-        actorat[ob->tilex][ob->tiley] = NULL;
+        actorat[mapylookup[ob->tiley] + ob->tilex] = NULL;
 
-//
-// non transitional object
-//
-
-    if (!ob->ticcount)
+    if (ob->ticcount)
     {
-        think = ob->state->think;
-        if (think)
+        ob->ticcount -= (short) tics;
+        while (ob->ticcount <= 0)
         {
-            think (ob);
+            think = ob->state->action;        // end of state action
+            if (think)
+            {
+                think (ob);
+                if (!ob->state)
+                {
+                    RemoveObj (ob);
+                    return;
+                }
+            }
+
+            ob->state = ob->state->next;
+
             if (!ob->state)
             {
                 RemoveObj (ob);
                 return;
             }
-        }
 
-        if (ob->flags & FL_NEVERMARK)
-            return;
-
-        if ((ob->flags & FL_NONMARK) && actorat[ob->tilex][ob->tiley])
-            return;
-
-        actorat[ob->tilex][ob->tiley] = ob;
-        return;
-    }
-
-//
-// transitional object
-//
-    ob->ticcount -= (short) tics;
-    while (ob->ticcount <= 0)
-    {
-        think = ob->state->action;        // end of state action
-        if (think)
-        {
-            think (ob);
-            if (!ob->state)
+            if (!ob->state->tictime)
             {
-                RemoveObj (ob);
-                return;
+                ob->ticcount = 0;
+                break;
             }
+
+            ob->ticcount += ob->state->tictime;
         }
-
-        ob->state = ob->state->next;
-
-        if (!ob->state)
-        {
-            RemoveObj (ob);
-            return;
-        }
-
-        if (!ob->state->tictime)
-        {
-            ob->ticcount = 0;
-            break;
-        }
-
-        ob->ticcount += ob->state->tictime;
     }
 
     //
@@ -1277,10 +1249,10 @@ void DoActor (objtype * ob)
     if (ob->flags & FL_NEVERMARK)
         return;
 
-    if ((ob->flags & FL_NONMARK) && actorat[ob->tilex][ob->tiley])
+    if ((ob->flags & FL_NONMARK) && actorat[mapylookup[ob->tiley] + ob->tilex])
         return;
 
-    actorat[ob->tilex][ob->tiley] = ob;
+    actorat[mapylookup[ob->tiley] + ob->tilex] = ob;
 }
 
 //==========================================================================

@@ -279,7 +279,7 @@ boolean ProjectileTryMove (objtype *ob)
     for (y=yl;y<=yh;y++)
         for (x=xl;x<=xh;x++)
         {
-            check = actorat[x][y];
+            check = actorat[mapylookup[y] + x];
             if (check && !ISPOINTER(check))
                 return false;
         }
@@ -1033,7 +1033,7 @@ void SpawnPatrol (int which, int tilex, int tiley, int dir)
     newobj->flags |= FL_SHOOTABLE;
     newobj->active = ac_yes;
 
-    actorat[newobj->tilex][newobj->tiley] = NULL;           // don't use original spot
+    actorat[mapylookup[tiley] + tilex] = NULL;           // don't use original spot
 
     switch (dir)
     {
@@ -1051,7 +1051,7 @@ void SpawnPatrol (int which, int tilex, int tiley, int dir)
             break;
     }
 
-    actorat[newobj->tilex][newobj->tiley] = newobj;
+    actorat[mapylookup[newobj->tiley] + newobj->tilex] = newobj;
 }
 
 
@@ -1963,7 +1963,7 @@ void A_Dormant (objtype *ob)
     for (y=yl ; y<=yh ; y++)
         for (x=xl ; x<=xh ; x++)
         {
-            tile = (uintptr_t)actorat[x][y];
+            tile = (uintptr_t)actorat[mapylookup[y] + x];
             if (!tile)
                 continue;
             if (!ISPOINTER(tile))
@@ -3448,7 +3448,7 @@ void T_Path (objtype *ob)
             break;
         }
 
-        if (ob->tilex>MAPSIZE || ob->tiley>MAPSIZE)
+        if (ob->tilex > mapwidth || ob->tiley > mapheight)
             Quit ("T_Path hit a wall at %u,%u, dir %u",ob->tilex,ob->tiley,ob->dir);
 
         ob->x = ((int32_t)ob->tilex<<TILESHIFT)+TILEGLOBAL/2;
@@ -3783,7 +3783,7 @@ boolean CheckPosition (objtype *ob)
     {
         for (x=xl;x<=xh;x++)
         {
-            check = actorat[x][y];
+            check = actorat[mapylookup[y] + x];
             if (check && !ISPOINTER(check))
                 return false;
         }

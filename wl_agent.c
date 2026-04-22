@@ -809,6 +809,7 @@ boolean TryMove (objtype *ob)
     int         xl,yl,xh,yh,x,y;
     objtype    *check;
     int32_t     deltax,deltay;
+    unsigned   offset;
 
     xl = (ob->x-PLAYERSIZE) >>TILESHIFT;
     yl = (ob->y-PLAYERSIZE) >>TILESHIFT;
@@ -825,10 +826,13 @@ boolean TryMove (objtype *ob)
     {
         for (x=xl;x<=xh;x++)
         {
-            check = actorat[x][y];
+            offset = mapylookup[y] + x;
+
+            check = actorat[offset];
+
             if (check && !ISPOINTER(check))
             {
-                if(tilemap[x][y]==BIT_WALL && x==pwallx && y==pwally)   // back of moving pushwall?
+                if (tilemap[offset]==BIT_WALL && x==pwallx && y==pwally)   // back of moving pushwall?
                 {
                     switch(pwalldir)
                     {
@@ -860,18 +864,21 @@ boolean TryMove (objtype *ob)
     //
     if (yl>0)
         yl--;
-    if (yh<MAPSIZE-1)
+    if (yh<mapheight-1)
         yh++;
     if (xl>0)
         xl--;
-    if (xh<MAPSIZE-1)
+    if (xh<mapwidth-1)
         xh++;
 
     for (y=yl;y<=yh;y++)
     {
         for (x=xl;x<=xh;x++)
         {
-            check = actorat[x][y];
+            offset = mapylookup[y] + x;
+
+            check = actorat[offset];
+
             if (ISPOINTER(check) && check != player && (check->flags & FL_SHOOTABLE) )
             {
                 deltax = ob->x - check->x;
@@ -1064,6 +1071,7 @@ void Cmd_Use (void)
 {
     int     checkx,checky,doornum,dir;
     boolean elevatorok;
+    unsigned offset;
 
     //
     // find which cardinal direction the player is facing
@@ -1097,8 +1105,11 @@ void Cmd_Use (void)
         elevatorok = false;
     }
 
-    doornum = tilemap[checkx][checky];
-    if (MAPSPOT(checkx,checky,1) == PUSHABLETILE)
+    offset = mapylookup[checky] + checkx;
+
+    doornum = tilemap[offset];
+
+    if (mapsegs[1][offset] == PUSHABLETILE)
     {
         //
         // pushable wall
@@ -1114,7 +1125,7 @@ void Cmd_Use (void)
         //
         buttonheld[bt_use] = true;
 
-        tilemap[checkx][checky]++;              // flip switch
+        tilemap[offset]++;              // flip switch
         if (MAPSPOT(player->tilex,player->tiley,0) == ALTELEVATORTILE)
             playstate = ex_secretlevel;
         else

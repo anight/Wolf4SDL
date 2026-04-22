@@ -68,6 +68,7 @@ void    FirstSighting (objtype *ob);
 
 objtype *SpawnNewObj (unsigned tilex, unsigned tiley, statetype *state)
 {
+    unsigned offset;
     objtype *newobj = NULL;
 
     newobj = GetNewActor();
@@ -85,8 +86,10 @@ objtype *SpawnNewObj (unsigned tilex, unsigned tiley, statetype *state)
     newobj->y = ((int32_t)tiley<<TILESHIFT)+TILEGLOBAL/2;
     newobj->dir = nodir;
 
-    actorat[tilex][tiley] = newobj;
-    newobj->areanumber = MAPSPOT(tilex,tiley,0) - AREATILE;
+    offset = mapylookup[tiley] + tilex;
+
+    actorat[offset] = newobj;
+    newobj->areanumber = mapsegs[0][offset] - AREATILE;
 
     return newobj;
 }
@@ -146,7 +149,7 @@ void NewState (objtype *ob, statetype *state)
 
 #define CHECKDIAG(x,y)                              \
 {                                                   \
-    temp=(uintptr_t)actorat[x][y];                  \
+    temp=(uintptr_t)actorat[mapylookup[y] + x];     \
     if (temp)                                       \
     {                                               \
         if (temp<BIT_ALLTILES)                      \
@@ -185,7 +188,7 @@ void NewState (objtype *ob, statetype *state)
 
 #define CHECKSIDE(x,y)                                  \
 {                                                       \
-    temp=(uintptr_t)actorat[x][y];                      \
+    temp=(uintptr_t)actorat[mapylookup[y] + x];         \
     if (temp)                                           \
     {                                                   \
         if (temp<BIT_DOOR)                              \
@@ -741,7 +744,7 @@ void MoveObj (objtype *ob, int32_t move)
             // where he gets stuck, but not exploit it by moving further into
             // the guard and effectively no-clipping through them...
             //
-            if (!ob->hidden || !spotvis[player->tilex][player->tiley])
+            if (!ob->hidden || !spotvis[mapylookup[player->tiley] + player->tilex])
             {
                 if (ob->obclass == ghostobj || ob->obclass == spectreobj)
                     TakeDamage (tics*2,ob);
@@ -782,7 +785,7 @@ void DropItem (int itemtype, int tilex, int tiley)
     //
     // find a free spot to put it in
     //
-    if (!actorat[tilex][tiley])
+    if (!actorat[mapylookup[tiley] + tilex])
     {
         PlaceItemType (itemtype, tilex,tiley);
         return;
@@ -797,7 +800,7 @@ void DropItem (int itemtype, int tilex, int tiley)
     {
         for (y=yl ; y<= yh ; y++)
         {
-            if (!actorat[x][y])
+            if (!actorat[mapylookup[y] + x])
             {
                 PlaceItemType (itemtype, x,y);
                 return;
@@ -948,7 +951,7 @@ void KillActor (objtype *ob)
 
     gamestate.killcount++;
     ob->flags &= ~FL_SHOOTABLE;
-    actorat[ob->tilex][ob->tiley] = NULL;
+    actorat[mapylookup[ob->tiley] + ob->tilex] = NULL;
     ob->flags |= FL_NONMARK;
 }
 
@@ -1092,7 +1095,7 @@ boolean CheckLine (objtype *ob)
             y = yfrac>>8;
             yfrac += ystep;
 
-            value = (unsigned)tilemap[x][y];
+            value = tilemap[mapylookup[y] + x];
             x += xstep;
 
             if (!value)
@@ -1146,7 +1149,7 @@ boolean CheckLine (objtype *ob)
             x = xfrac>>8;
             xfrac += xstep;
 
-            value = (unsigned)tilemap[x][y];
+            value = tilemap[mapylookup[y] + x];
             y += ystep;
 
             if (!value)
