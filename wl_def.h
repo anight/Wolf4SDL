@@ -1093,7 +1093,7 @@ extern  int         extravbls;
 
 extern  word        mapwidth,mapheight;
 extern  unsigned    tics;
-extern  int         lastgamemusicoffset;
+extern  int32_t     lastgamemusicoffset;
 
 //
 // control info
@@ -1127,7 +1127,7 @@ void    InitRedShifts (void);
 void    FinishPaletteShifts (void);
 void    RemoveObj (objtype *gone);
 void    PollControls (void);
-int     StopMusic (void);
+int32_t StopMusic (void);
 void    StartMusic (void);
 void    ContinueMusic (int offs);
 void    StartDamageFlash (int damage);

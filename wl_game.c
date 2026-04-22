@@ -794,12 +794,6 @@ void SetupGameLevel (void)
 #ifdef USE_PARALLAX
     SetParallaxStartTexture ();
 #endif
-
-//
-// have the caching manager load and purge stuff to make sure all marks
-// are in memory
-//
-    CA_LoadAllSounds ();
 }
 
 

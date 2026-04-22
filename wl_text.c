@@ -756,7 +756,6 @@ void HelpScreens (void)
 #ifdef JAPAN
     ShowArticle (0);
     VW_FadeOut();
-    FreeMusic ();
 #else
 
 #ifdef ARTSEXTERN
@@ -775,7 +774,6 @@ void HelpScreens (void)
 
     VW_FadeOut();
 
-    FreeMusic ();
 #endif
 }
 #endif
@@ -802,7 +800,6 @@ void EndText (void)
     IN_ClearKeysDown();
     IN_CenterMouse ();
 
-    FreeMusic ();
 #else
 
 
@@ -827,8 +824,6 @@ void EndText (void)
     SETFONTCOLOR(0,15);
     IN_ClearKeysDown();
     IN_CenterMouse ();
-
-    FreeMusic ();
 #endif
 }
 #endif

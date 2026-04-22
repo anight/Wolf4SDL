@@ -8,6 +8,8 @@
 #ifndef __ID_SD_H_
 #define __ID_SD_H_
 
+#pragma pack(1)
+
 #define alOut(n,b) YM3812Write(oplChip, n, b)
 
 #define TickBase        70      // 70Hz per tick - used as a base for timer 0
@@ -143,10 +145,10 @@ extern  void    SD_StopSound(void),
                 SD_WaitSoundDone(void);
 
 extern  void    SD_StartMusic(int chunk);
-extern  void    SD_ContinueMusic(int chunk, int startoffs);
+extern  void    SD_ContinueMusic(int chunk, int32_t startoffs);
 extern  void    SD_MusicOn(void),
                 SD_FadeOutMusic(void);
-extern  int     SD_MusicOff(void);
+extern  int32_t SD_MusicOff(void);
 
 extern  boolean SD_MusicPlaying(void);
 extern  boolean SD_SetSoundMode(int mode);

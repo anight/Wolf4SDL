@@ -1115,7 +1115,6 @@ CP_Sound (int blank)
                 {
                     SD_WaitSoundDone ();
                     SD_SetSoundMode (sdm_PC);
-                    CA_LoadAllSounds ();
                     DrawSoundMenu ();
                     ShootSnd ();
                 }
@@ -1125,7 +1124,6 @@ CP_Sound (int blank)
                 {
                     SD_WaitSoundDone ();
                     SD_SetSoundMode (sdm_AdLib);
-                    CA_LoadAllSounds ();
                     DrawSoundMenu ();
                     ShootSnd ();
                 }
@@ -3111,9 +3109,7 @@ SetupControlPanel (void)
     fontnumber = 1;
     WindowH = screen.baseheight - (screen.heightoffset * 2);
 
-    if (!ingame)
-        CA_LoadAllSounds ();
-    else
+    if (ingame)
         MainMenu[savegame].active = 1;
 
     IN_CenterMouse ();
@@ -3830,25 +3826,16 @@ Message (const char *string)
 // THIS MAY BE FIXED A LITTLE LATER...
 //
 ////////////////////////////////////////////////////////////////////
-static int lastmusic;
 
-int
-StartCPMusic (int song)
+int32_t StartCPMusic (int song)
 {
-    int lastoffs;
+    int32_t lastoffs;
 
-    lastmusic = song;
-    lastoffs = SD_MusicOff ();
-    FreeMusic ();
+    lastoffs = SD_MusicOff();
 
-    SD_StartMusic(STARTMUSIC + song);
+    SD_StartMusic (STARTMUSIC + song);
+
     return lastoffs;
-}
-
-void
-FreeMusic (void)
-{
-    SafeFree (audiosegs[STARTMUSIC + lastmusic]);
 }
 
 

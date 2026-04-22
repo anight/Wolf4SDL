@@ -147,7 +147,7 @@ void DrawOutline(int x,int y,int w,int h,int color1,int color2);
 void WaitKeyUp(void);
 void ReadAnyControl(ControlInfo *ci);
 void TicDelay(int count);
-int StartCPMusic(int song);
+int32_t StartCPMusic(int song);
 int  Confirm(const char *string);
 void Message(const char *string);
 void CheckPause(void);
@@ -208,8 +208,6 @@ int CustomControls(int);
 int MouseSensitivity(int);
 
 void CheckForEpisodes(void);
-
-void FreeMusic(void);
 
 
 enum {MOUSE,JOYSTICK,KEYBOARDBTNS,KEYBOARDMOVE};        // FOR INPUT TYPES

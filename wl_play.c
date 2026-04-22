@@ -25,8 +25,6 @@ boolean madenoise;              // true when shooting or screaming
 
 int8_t  playstate;
 
-static int lastmusicchunk = 0;
-
 int     DebugOk;
 
 objtype objlist[MAXACTORS];
@@ -588,7 +586,7 @@ void CenterWindow (word w, word h)
 void CheckKeys (void)
 {
     ScanCode scan;
-
+    int32_t  lastoffs;
 
     if ((screen.flags & SC_FADED) || demoplayback)    // don't do anything with a faded screen
         return;
@@ -696,7 +694,7 @@ void CheckKeys (void)
     if(buttonstate[bt_pause]) Paused = true;
     if(Paused)
     {
-        int lastoffs = StopMusic();
+        lastoffs = StopMusic();
         VW_DrawPic (16 * 8, 80 - 2 * 8, PAUSEDPIC);
         VW_UpdateScreen();
         IN_Ack ();
@@ -731,7 +729,7 @@ void CheckKeys (void)
 
     if ((scan >= sc_F1 && scan <= sc_F9) || scan == sc_Escape || buttonstate[bt_esc])
     {
-        int lastoffs = StopMusic ();
+        lastoffs = StopMusic ();
         ClearMemory ();
         VW_FadeOut ();
 
@@ -947,16 +945,11 @@ void RemoveObj (objtype * gone)
 =
 =================
 */
-int StopMusic (void)
+
+int32_t StopMusic (void)
 {
-    int lastoffs = SD_MusicOff ();
-
-    SafeFree (audiosegs[STARTMUSIC + lastmusicchunk]);
-
-    return lastoffs;
+    return SD_MusicOff();
 }
-
-//==========================================================================
 
 
 /*
@@ -967,18 +960,18 @@ int StopMusic (void)
 =================
 */
 
-void StartMusic ()
+void StartMusic (void)
 {
     SD_MusicOff ();
-    lastmusicchunk = songs[gamestate.mapon + gamestate.episode * 10];
-    SD_StartMusic(STARTMUSIC + lastmusicchunk);
+
+    SD_StartMusic (STARTMUSIC + songs[gamestate.mapon + gamestate.episode * 10]);
 }
 
-void ContinueMusic (int offs)
+void ContinueMusic (int32_t offs)
 {
     SD_MusicOff ();
-    lastmusicchunk = songs[gamestate.mapon + gamestate.episode * 10];
-    SD_ContinueMusic(STARTMUSIC + lastmusicchunk, offs);
+
+    SD_ContinueMusic (STARTMUSIC + songs[gamestate.mapon + gamestate.episode * 10],offs);
 }
 
 /*

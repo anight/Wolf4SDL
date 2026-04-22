@@ -1437,7 +1437,6 @@ CopyProtection (void)
 
     attempt = 0;
     VW_FadeOut ();
-    CA_LoadAllSounds ();
     StartCPMusic (COPYPRO_MUS);
     US_InitRndT (true);
 

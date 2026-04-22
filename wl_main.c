@@ -1185,9 +1185,6 @@ void DoJukebox(void)
 #else
     start = 0;
 #endif
-
-    CA_LoadAllSounds ();
-
     fontnumber=1;
     ClearMScreen ();
     VW_DrawPic(112,184,C_MOUSELBACKPIC);

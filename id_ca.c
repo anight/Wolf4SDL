@@ -87,7 +87,6 @@ static const char aheadname[] = "audiohed.";
 static const char afilename[] = "audiot.";
 
 static int32_t  grstarts[NUMCHUNKS + 1];
-static int32_t* audiostarts; // array of offsets in audio / audiot
 
 #ifdef GRHEADERLINKED
 huffnode *grhuffman;
@@ -95,11 +94,7 @@ huffnode *grhuffman;
 huffnode grhuffman[255];
 #endif
 
-FILE   *audiofile;
-
 int32_t   chunkcomplen,chunkexplen;
-
-byte   oldsoundmode;
 
 
 static int32_t GRFILEPOS(const size_t idx)
@@ -617,7 +612,13 @@ void CAL_SetupMapFile (void)
 
 void CAL_SetupAudioFile (void)
 {
-    char fname[13];
+    int     i,chunk;
+    word    length;
+    int32_t pos,size;
+    int32_t *audiostarts;
+    byte    *dest;
+    char    fname[13];
+    FILE    *file;
 
 //
 // load audiohed.ext (offsets for audio file)
@@ -631,13 +632,77 @@ void CAL_SetupAudioFile (void)
 //
     snprintf (fname,sizeof(fname),"%s%s",afilename,extension);
 
-    audiofile = fopen(fname,"rb");
+    file = fopen(fname,"rb");
 
-    if (!audiofile)
+    if (!file)
         CA_CannotOpen (fname);
-}
 
-//==========================================================================
+    for (chunk = 0; chunk < NUMSNDCHUNKS; chunk++)
+    {
+        pos = audiostarts[chunk];
+        size = audiostarts[chunk + 1] - pos;
+
+        fseek (file,pos,SEEK_SET);
+
+        if (chunk >= STARTMUSIC)
+        {
+            //
+            // the original format stores a 2 byte length at
+            // the start of the chunk and 88 bytes of Muse
+            // data at the end
+            //
+            // for old format: add 2 bytes to size and remove
+            // the Muse fluff
+            //
+            // for new format: add 4 bytes to size and reset
+            // file pointer
+            //
+            fread (&length,sizeof(length),1,file);
+
+            if (length)
+            {
+                size += sizeof(length);
+                size -= 88;
+            }
+            else
+            {
+                size += sizeof(size);
+
+                fseek (file,pos,SEEK_SET);
+            }
+
+            audiosegs[chunk] = SafeMalloc(size);
+            dest = audiosegs[chunk];
+
+            //
+            // write 4 byte length to start of chunk
+            //
+            for (i = 0; i < sizeof(size); i++)
+                *dest++ = (byte)(size >> (i << 3));
+
+            size -= sizeof(size);       // remove length from data read
+        }
+        else
+        {
+            if (chunk >= STARTDIGISOUNDS)
+            {
+                chunk = STARTMUSIC;     // skip over unused digi sound starts
+                continue;
+            }
+            else if (chunk >= STARTADLIBSOUNDS)
+                size += sizeof(AdLibSound) - sizeof(((AdLibSound *)0)->data);
+
+            audiosegs[chunk] = SafeMalloc(size);
+            dest = audiosegs[chunk];
+        }
+
+        fread (dest,size,1,file);
+    }
+
+    SafeFree (audiostarts);
+
+    fclose (file);
+}
 
 
 /*
@@ -672,10 +737,7 @@ void CA_Startup (void)
 
 void CA_Shutdown (void)
 {
-    int i,start;
-
-    if (audiofile)
-        fclose (audiofile);
+    int i;
 
     for (i = 0; i < NUMCHUNKS; i++)
         SafeFree (grsegs[i]);
@@ -686,163 +748,12 @@ void CA_Shutdown (void)
     for (i = 0; i < MAPPLANES; i++)
         SafeFree (mapsegs[i]);
 
+    for (i = 0; i < NUMSNDCHUNKS; i++)
+        SafeFree (audiosegs[i]);
+
     SafeFree (pictable);
     SafeFree (tinf);
-
-    if (oldsoundmode != sdm_Off)
-    {
-        switch (oldsoundmode)
-        {
-            case sdm_PC:
-                start = STARTPCSOUNDS;
-                break;
-
-            case sdm_AdLib:
-                start = STARTADLIBSOUNDS;
-                break;
-        }
-
-        for (i = 0; i < NUMSOUNDS; i++, start++)
-            SafeFree (audiosegs[start]);
-    }
 }
-
-//===========================================================================
-
-/*
-======================
-=
-= CA_CacheAudioChunk
-=
-======================
-*/
-
-int32_t CA_CacheAudioChunk (int chunk)
-{
-    int32_t pos = audiostarts[chunk];
-    int32_t size = audiostarts[chunk+1]-pos;
-
-    if (audiosegs[chunk])
-        return size;                        // already in memory
-
-    audiosegs[chunk] = SafeMalloc(size);
-
-    fseek (audiofile,pos,SEEK_SET);
-    fread (audiosegs[chunk],size,1,audiofile);
-
-    return size;
-}
-
-void CA_CacheAdlibSoundChunk (int chunk)
-{
-    AdLibSound *sound;
-    byte    *bufferseg;
-    byte    *ptr;
-    int32_t pos = audiostarts[chunk];
-    int32_t size = audiostarts[chunk+1]-pos;
-
-    if (audiosegs[chunk])
-        return;                        // already in memory
-
-    fseek (audiofile,pos,SEEK_SET);
-
-    bufferseg = SafeMalloc(ORIG_ADLIBSOUND_SIZE - 1);
-    ptr = bufferseg;
-
-    fread (ptr,ORIG_ADLIBSOUND_SIZE - 1,1,audiofile);   // without data[1]
-
-    audiosegs[chunk] = SafeMalloc(size + sizeof(*sound) - ORIG_ADLIBSOUND_SIZE);
-    sound = (AdLibSound *)audiosegs[chunk];
-
-    sound->common.length = ReadLong(ptr);
-    ptr += 4;
-
-    sound->common.priority = ReadShort(ptr);
-    ptr += 2;
-
-    sound->inst.mChar = *ptr++;
-    sound->inst.cChar = *ptr++;
-    sound->inst.mScale = *ptr++;
-    sound->inst.cScale = *ptr++;
-    sound->inst.mAttack = *ptr++;
-    sound->inst.cAttack = *ptr++;
-    sound->inst.mSus = *ptr++;
-    sound->inst.cSus = *ptr++;
-    sound->inst.mWave = *ptr++;
-    sound->inst.cWave = *ptr++;
-    sound->inst.nConn = *ptr++;
-    sound->inst.voice = *ptr++;
-    sound->inst.mode = *ptr++;
-    sound->inst.unused[0] = *ptr++;
-    sound->inst.unused[1] = *ptr++;
-    sound->inst.unused[2] = *ptr++;
-    sound->block = *ptr++;
-
-    fread (sound->data,size - ORIG_ADLIBSOUND_SIZE + 1,1,audiofile);  // + 1 because of byte data[1]
-
-    SafeFree (bufferseg);
-}
-
-//===========================================================================
-
-/*
-======================
-=
-= CA_LoadAllSounds
-=
-= Purges all sounds, then loads all new ones (mode switch)
-=
-======================
-*/
-
-void CA_LoadAllSounds (void)
-{
-    unsigned start,i;
-
-    if (oldsoundmode != sdm_Off)
-    {
-        switch (oldsoundmode)
-        {
-            case sdm_PC:
-                start = STARTPCSOUNDS;
-                break;
-            case sdm_AdLib:
-                start = STARTADLIBSOUNDS;
-                break;
-        }
-
-        for (i = 0; i < NUMSOUNDS; i++, start++)
-            SafeFree (audiosegs[start]);
-    }
-
-    oldsoundmode = SoundMode;
-
-    switch (SoundMode)
-    {
-        case sdm_Off:
-            start = STARTADLIBSOUNDS;   // needed for priorities...
-            break;
-        case sdm_PC:
-            start = STARTPCSOUNDS;
-            break;
-        case sdm_AdLib:
-            start = STARTADLIBSOUNDS;
-            break;
-    }
-
-    if(start == STARTADLIBSOUNDS)
-    {
-        for (i=0;i<NUMSOUNDS;i++,start++)
-            CA_CacheAdlibSoundChunk(start);
-    }
-    else
-    {
-        for (i=0;i<NUMSOUNDS;i++,start++)
-            CA_CacheAudioChunk(start);
-    }
-}
-
-//===========================================================================
 
 
 /*

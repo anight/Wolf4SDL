@@ -107,8 +107,8 @@ static  Instrument              alZeroInst;
 static  volatile boolean        sqActive;
 static  word                   *sqHack;
 static  word                   *sqHackPtr;
-static  int                     sqHackLen;
-static  int                     sqHackSeqLen;
+static  int32_t                 sqHackLen;
+static  int32_t                 sqHackSeqLen;
 static  longword                sqHackTime;
 
 #ifdef USE_GPL
@@ -1209,11 +1209,9 @@ SD_StartMusic(int chunk)
 
     if (MusicMode == smm_AdLib)
     {
-        int32_t chunkLen = CA_CacheAudioChunk(chunk);
-        sqHack = (word *)(void *) audiosegs[chunk];     // alignment is correct
-        if(*sqHack == 0) sqHackLen = sqHackSeqLen = chunkLen;
-        else sqHackLen = sqHackSeqLen = *sqHack++;
-        sqHackPtr = sqHack;
+        sqHackLen = sqHackSeqLen = ReadLong(audiosegs[chunk]);
+        sqHackPtr = sqHack = (word *)(audiosegs[chunk] + sizeof(sqHackLen));
+
         sqHackTime = 0;
         alTimeCount = 0;
         SD_MusicOn();
@@ -1221,19 +1219,16 @@ SD_StartMusic(int chunk)
 }
 
 void
-SD_ContinueMusic(int chunk, int startoffs)
+SD_ContinueMusic(int chunk, int32_t startoffs)
 {
-    int i;
+    int32_t i;
 
     SD_MusicOff();
 
     if (MusicMode == smm_AdLib)
     {
-        int32_t chunkLen = CA_CacheAudioChunk(chunk);
-        sqHack = (word *)(void *) audiosegs[chunk];     // alignment is correct
-        if(*sqHack == 0) sqHackLen = sqHackSeqLen = chunkLen;
-        else sqHackLen = sqHackSeqLen = *sqHack++;
-        sqHackPtr = sqHack;
+        sqHackLen = sqHackSeqLen = ReadLong(audiosegs[chunk]);
+        sqHackPtr = sqHack = (word *)(audiosegs[chunk] + sizeof(sqHackLen));
 
         if(startoffs >= sqHackLen)
         {

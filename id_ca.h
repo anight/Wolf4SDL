@@ -41,9 +41,6 @@ void CA_RLEWexpand (word *source, word *dest, int32_t length, word rlewtag);
 void CA_Startup (void);
 void CA_Shutdown (void);
 
-int32_t CA_CacheAudioChunk (int chunk);
-void CA_LoadAllSounds (void);
-
 void CA_CacheGrChunks (FILE *file);
 void CA_CacheMap (int mapnum);
 
