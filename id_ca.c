@@ -24,29 +24,11 @@ Id Software Caching Manager
 
 #define THREEBYTEGRSTARTS
 
-/*
-=============================================================================
-
-                             LOCAL CONSTANTS
-
-=============================================================================
-*/
-
-typedef struct
-{
-    word bit0,bit1;       // 0-255 is a character, > is a pointer to a node
-} huffnode;
-
-
-typedef struct
-{
-    word RLEWtag;
-#if MAPPLANES >= 4
-    word numplanes;       // unused, but WDC needs 2 bytes here for internal usage
+#ifdef THREEBYTEGRSTARTS
+    #define GRSTARTSIZE     3
+#else
+    #define GRSTARTSIZE     4
 #endif
-    int32_t headeroffsets[NUMMAPS];
-} mapfiletype;
-
 
 /*
 =============================================================================
@@ -72,8 +54,7 @@ mapfiletype *tinf;
 */
 
 char extension[5]; // Need a string, not constant to change cache files
-char graphext[5];
-char audioext[5];
+
 static const char gheadname[] = "vgahead.";
 static const char gfilename[] = "vgagraph.";
 static const char gdictname[] = "vgadict.";
@@ -86,22 +67,6 @@ static const char mfilename[] = "maptemp.";
 static const char aheadname[] = "audiohed.";
 static const char afilename[] = "audiot.";
 
-static int32_t  grstarts[NUMCHUNKS + 1];
-
-#ifdef GRHEADERLINKED
-huffnode *grhuffman;
-#else
-huffnode grhuffman[255];
-#endif
-
-int32_t   chunkcomplen,chunkexplen;
-
-
-static int32_t GRFILEPOS(const size_t idx)
-{
-	assert(idx < lengthof(grstarts));
-	return grstarts[idx];
-}
 
 /*
 =============================================================================
@@ -129,25 +94,6 @@ int32_t CA_GetFileLength (FILE *file)
     fseek (file,0,SEEK_SET);
 
     return length;
-}
-
-
-/*
-============================
-=
-= CAL_GetGrChunkLength
-=
-= Gets the length of an explicit length chunk (not tiles)
-= The file pointer is positioned so the compressed data can be read in next.
-=
-============================
-*/
-
-void CAL_GetGrChunkLength (FILE *grfile, int chunk)
-{
-    fseek (grfile,GRFILEPOS(chunk),SEEK_SET);
-    fread (&chunkexplen,sizeof(chunkexplen),1,grfile);
-    chunkcomplen = GRFILEPOS(chunk+1)-GRFILEPOS(chunk)-4;
 }
 
 
@@ -453,9 +399,16 @@ void CA_RLEWexpand (word *source, word *dest, int32_t length, word rlewtag)
 
 void CAL_SetupGrFile (void)
 {
-    char fname[13];
-    FILE *file;
-    byte *compseg;
+    int      i;
+    char     fname[13];
+    huffnode grhuffman[255];
+    FILE     *file;
+    byte     *compseg;
+    byte     b[GRSTARTSIZE];
+    int      expectedsize;
+    int32_t  headersize;
+    int32_t  compressed,expanded;
+    int32_t  *grstarts;
 
 //
 // load ???dict.ext (huffman dictionary for graphics files)
@@ -480,31 +433,32 @@ void CAL_SetupGrFile (void)
     if (!file)
         CA_CannotOpen (fname);
 
-    fseek (file,0,SEEK_END);
-    int32_t headersize = ftell(file);
-    fseek (file,0,SEEK_SET);
+    headersize = CA_GetFileLength(file);
 
-	int expectedsize = lengthof(grstarts);
+	expectedsize = NUMCHUNKS + 1;
 
-    if(!param_ignorenumchunks && headersize / 3 != expectedsize)
-        Quit("Wolf4SDL was not compiled for these data files:\n"
-            "%s contains a wrong number of offsets (%i instead of %i)!\n\n"
-            "Please check whether you are using the right executable!\n"
-            "(For mod developers: perhaps you forgot to update NUMCHUNKS?)",
-            fname, headersize / 3, expectedsize);
+    if (!param_ignorenumchunks && headersize / GRSTARTSIZE != expectedsize)
+        Quit ("Wolf4SDL was not compiled for these data files:\n"
+              "%s contains a wrong number of offsets (%i instead of %i)!\n\n"
+              "Please check whether you are using the right executable!\n"
+              "(For mod developers: perhaps you forgot to update NUMCHUNKS?)",
+              fname,headersize / GRSTARTSIZE,expectedsize);
 
-    byte data[lengthof(grstarts) * 3];
-    fread (data,sizeof(data),1,file);
-    fclose (file);
-
-    byte *d = data;
-    int32_t* i;
-    for (i = grstarts; i != endof(grstarts); ++i)
+    grstarts = SafeMalloc(expectedsize * sizeof(*grstarts));
+#ifdef THREEBYTEGRSTARTS
+    for (i = 0; i < expectedsize; i++)
     {
-        int32_t val = d[0] | (d[1] << 8) | (d[2] << 16);
-        *i = (val == 0x00FFFFFF ? -1 : val);
-        d += 3;
+        fread (b,sizeof(b),1,file);
+
+        grstarts[i] = b[0] | (b[1] << 8) | (b[2] << 16);
+
+        if (grstarts[i] == 0x00ffffff)
+            grstarts[i] = -1;
     }
+#else
+    fread (grstarts,expectedsize * sizeof(*grstarts),1,file);
+#endif
+    fclose (file);
 
 //
 // Open the graphics file
@@ -517,21 +471,29 @@ void CAL_SetupGrFile (void)
         CA_CannotOpen (fname);
 
 //
-// load the pic and sprite headers into the arrays in the data segment
+// load the pic headers
 //
-    pictable = SafeMalloc(NUMPICS * sizeof(*pictable));
-    CAL_GetGrChunkLength (file,STRUCTPIC);                // position file pointer
-    compseg = SafeMalloc(chunkcomplen);
-    fread (compseg,chunkcomplen,1,file);
-    CAL_HuffExpand(compseg, (byte*)pictable, NUMPICS * sizeof(*pictable), grhuffman);
+    expanded = NUMPICS * sizeof(*pictable);
+
+    compressed = grstarts[STRUCTPIC + 1] - grstarts[STRUCTPIC] - sizeof(expanded);
+
+    fseek (file,grstarts[STRUCTPIC] + sizeof(expanded),SEEK_SET);
+
+    compseg = SafeMalloc(compressed);
+    fread (compseg,compressed,1,file);
+
+    pictable = SafeMalloc(expanded);
+
+    CAL_HuffExpand (compseg,(byte *)pictable,expanded,grhuffman);
+
     SafeFree (compseg);
 
-    CA_CacheGrChunks (file);
+    CA_CacheGrChunks (grstarts,grhuffman,file);
+
+    SafeFree (grstarts);
 
     fclose (file);
 }
-
-//==========================================================================
 
 
 /*
@@ -766,9 +728,9 @@ void CA_Shutdown (void)
 ======================
 */
 
-void CAL_ExpandGrChunk (int chunk, byte *source)
+void CAL_ExpandGrChunk (int chunk, byte *source, huffnode *hufftable)
 {
-    int32_t    expanded;
+    int32_t expanded;
 
     //
     // expanded sizes of tile8s are implicit,
@@ -787,7 +749,7 @@ void CAL_ExpandGrChunk (int chunk, byte *source)
     //
     grsegs[chunk] = SafeMalloc(expanded);
 
-    CAL_HuffExpand (source,grsegs[chunk],expanded,grhuffman);
+    CAL_HuffExpand (source,grsegs[chunk],expanded,hufftable);
 }
 
 
@@ -831,7 +793,7 @@ void CAL_DeplaneGrChunk (int chunk)
 ======================
 */
 
-void CA_CacheGrChunks (FILE *grfile)
+void CA_CacheGrChunks (int32_t *offset, huffnode *hufftable, FILE *grfile)
 {
     byte    *source = NULL;
     int32_t pos,compressed;
@@ -845,24 +807,24 @@ void CA_CacheGrChunks (FILE *grfile)
         //
         // load the chunk into a buffer
         //
-        pos = GRFILEPOS(chunk);
+        pos = offset[chunk];
 
-        if (pos<0)                              // $FFFFFFFF start is a sparse tile
+        if (pos < 0)                         // $FFFFFFFF start is a sparse tile
             continue;
 
         next = chunk + 1;
 
-        while (GRFILEPOS(next) == -1)           // skip past any sparse tiles
+        while (offset[next] == -1)           // skip past any sparse tiles
             next++;
 
-        compressed = GRFILEPOS(next)-pos;
+        compressed = offset[next] - pos;
 
         fseek (grfile,pos,SEEK_SET);
 
         source = SafeRealloc(source,compressed);
         fread (source,compressed,1,grfile);
 
-        CAL_ExpandGrChunk (chunk,source);
+        CAL_ExpandGrChunk (chunk,source,hufftable);
 
         if (chunk >= STARTPICS && chunk < STARTEXTERNS)
             CAL_DeplaneGrChunk (chunk);
