@@ -578,7 +578,7 @@ void CAL_SetupAudioFile (void)
         {
             if (chunk >= STARTDIGISOUNDS)
             {
-                chunk = STARTMUSIC;     // skip over unused digi sound starts
+                chunk = STARTMUSIC - 1;     // skip over unused digi sound starts
                 continue;
             }
             else if (chunk >= STARTADLIBSOUNDS)
