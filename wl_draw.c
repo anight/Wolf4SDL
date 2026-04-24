@@ -1603,8 +1603,7 @@ void ThreeDRefresh (void)
             SETFONTCOLOR(7,127);
             PrintX=4; PrintY=1;
             VW_Bar(0,0,50,10,bordercol);
-            US_PrintSigned(fps);
-            US_Print(" fps");
+            US_Printf (" %d",fps);
         }
 #endif
         VW_UpdateScreen ();

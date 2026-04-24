@@ -51,8 +51,19 @@ typedef struct
 } fontstruct;
 
 
+typedef struct
+{
+    int     width;          // line width in pixels
+    int     height;         // string height in pixels
+    int     length;         // line width in chars
+    int     lines;          // string height in lines
+    int     lastwidth;      // last line width in pixels
+} stringtype;
+
+
 extern  screen_t        screen;
 extern	pictabletype	*pictable;
+extern  fontstruct      *fontsegs[NUMFONT];
 
 extern  byte            fontcolor,backcolor;
 extern	int             fontnumber;
@@ -114,7 +125,7 @@ void VW_SegToScreen (byte *source, int srcwidth, int srcx, int srcy,
 
 void VW_MemToScreen (byte *source, int width, int height, int x, int y);
 
-void VW_MeasurePropString (const char *string, word *width, word *height);
+void VW_MeasurePropString (const char *string, stringtype *s, int terminator);
 
 boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolean abortable);
 

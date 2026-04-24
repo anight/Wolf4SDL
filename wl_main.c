@@ -48,7 +48,7 @@ extern byte signon[];
 =============================================================================
 */
 
-char    str[80];
+char    str[MaxString];
 int     dirangle[9] = {0,ANGLES/8,2*ANGLES/8,3*ANGLES/8,4*ANGLES/8,
                        5*ANGLES/8,6*ANGLES/8,7*ANGLES/8,ANGLES};
 
@@ -917,9 +917,9 @@ void FinishSignon (void)
     SETFONTCOLOR(14,4);
 
     #ifdef SPANISH
-    US_CPrint ("Oprima una tecla");
+    US_Print ("\tOprima una tecla");
     #else
-    US_CPrint ("Press a key");
+    US_Print ("\tPress a key");
     #endif
 
     #endif
@@ -936,9 +936,9 @@ void FinishSignon (void)
     SETFONTCOLOR(10,4);
 
     #ifdef SPANISH
-    US_CPrint ("pensando...");
+    US_Print ("\tpensando...");
     #else
-    US_CPrint ("Working...");
+    US_Print ("\tWorking...");
     #endif
 
     VW_UpdateScreen();
@@ -1208,7 +1208,7 @@ void DoJukebox(void)
     PrintY=15;
     WindowX = 0;
     WindowY = 320;
-    US_CPrint ("Robert's Jukebox");
+    US_Print ("\tRobert's Jukebox");
 
     SETFONTCOLOR (TEXTCOLOR,BKGDCOLOR);
     VW_UpdateScreen();

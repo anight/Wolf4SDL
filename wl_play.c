@@ -553,27 +553,6 @@ void PollControls (void)
 }
 
 
-//==========================================================================
-
-
-
-///////////////////////////////////////////////////////////////////////////
-//
-//      CenterWindow() - Generates a window of a given width & height in the
-//              middle of the screen
-//
-///////////////////////////////////////////////////////////////////////////
-#define MAXX    320
-#define MAXY    160
-
-void CenterWindow (word w, word h)
-{
-    US_DrawWindow (((MAXX / 8) - w) / 2, ((MAXY / 8) - h) / 2, w, h);
-}
-
-//===========================================================================
-
-
 /*
 =====================
 =
@@ -730,6 +709,7 @@ void CheckKeys (void)
     {
         lastoffs = StopMusic ();
         ClearMemory ();
+        ClearSplitVWB ();
         VW_FadeOut ();
 
         US_ControlPanel (buttonstate[bt_esc] ? sc_Escape : scan);

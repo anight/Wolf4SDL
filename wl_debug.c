@@ -44,45 +44,43 @@ int DebugKeys (void);
 
 void CountObjects (void)
 {
-    int     i,total,count,active,inactive,doors;
+    int     i;
+    int     totalstatics,staticsactive;
+    int     actorsactive,actorsinactive;
     objtype *obj;
 
-    CenterWindow (17,7);
-    active = inactive = count = doors = 0;
+    actorsactive = actorsinactive = 0;
 
-    US_Print ("Total statics :");
-    total = (int)(laststatobj-&statobjlist[0]);
-    US_PrintUnsigned (total);
-
-    snprintf(str,sizeof(str),"\nlaststatobj=%.8X",(int32_t)(uintptr_t)laststatobj);
-    US_Print(str);
-
-    US_Print ("\nIn use statics:");
-    for (i=0;i<total;i++)
-    {
-        if (statobjlist[i].shapenum != -1)
-            count++;
-        else
-            doors++;        //debug
-    }
-    US_PrintUnsigned (count);
-
-    US_Print ("\nDoors         :");
-    US_PrintUnsigned (doornum);
-
-    for (obj=player->next;obj;obj=obj->next)
+    for (obj = player->next; obj; obj = obj->next)
     {
         if (obj->active)
-            active++;
+            actorsactive++;
         else
-            inactive++;
+            actorsinactive++;
     }
 
-    US_Print ("\nTotal actors  :");
-    US_PrintUnsigned (active+inactive);
+    totalstatics = (int)(laststatobj - &statobjlist[0]);
+    staticsactive = 0;
 
-    US_Print ("\nActive actors :");
-    US_PrintUnsigned (active);
+    for (i = 0; i < totalstatics; i++)
+    {
+        if (statobjlist[i].shapenum != -1)
+            staticsactive++;
+    }
+
+    US_PrintfWindow (
+        "Total statics :%d"
+        "\nlaststatobj=%p"
+        "\nIn use statics:%d"
+        "\nDoors         :%d"
+        "\nTotal actors  :%d"
+        "\nActive actors :%d",
+        totalstatics,
+        laststatobj,
+        staticsactive,
+        doornum,
+        actorsactive + actorsinactive,
+        actorsactive);
 
     VW_UpdateScreen();
     IN_Ack ();
@@ -123,8 +121,7 @@ void PictureGrabber (void)
 
     SDL_SaveBMP(screen.buffer, fname);
 
-    CenterWindow (18,2);
-    US_PrintCentered ("Screenshot taken");
+    US_PrintWindow ("\v\tScreenshot taken");
     VW_UpdateScreen();
     IN_Ack();
 }
@@ -246,8 +243,7 @@ void ShapeTest (void)
     byte       *addr;
     int        sound;
 
-    CenterWindow (20,16);
-    VW_UpdateScreen();
+    US_CenterWindow (20,16);
 
     i = 0;
     done = false;
@@ -257,8 +253,7 @@ void ShapeTest (void)
         US_ClearWindow ();
         sound = -1;
 
-        US_Print (" Page #");
-        US_PrintSigned (i);
+        US_Printf (" Page #%d",i);
 
         if (i < PMSpriteStart)
             US_Print (" (Wall)");
@@ -269,10 +264,9 @@ void ShapeTest (void)
         else
             US_Print (" (Sound)");
 
-        US_Print ("\n Address: ");
         addr = PM_GetPage(i);
-        snprintf (str,sizeof(str),"0x%010X",(uintptr_t)addr);
-        US_Print (str);
+
+        US_Printf ("\n Address: %p",addr);
 
         if (addr)
         {
@@ -338,16 +332,13 @@ void ShapeTest (void)
                 //
                 // display sound info
                 //
-                US_Print ("\n\n Number of sounds: ");
-                US_PrintUnsigned (NumDigi);
+                US_Printf ("\n\n Number of sounds: %d",NumDigi);
 
 				for (l = j = 0; j < NumDigi; j++)
 					l += DigiList[j].length;
 
-                US_Print ("\n Total bytes: ");
-                US_PrintUnsigned (l);
-                US_Print ("\n Total pages: ");
-                US_PrintUnsigned (ChunksInFile - PMSoundStart - 1);
+                US_Printf ("\n Total bytes: %d",l);
+                US_Printf ("\n Total pages: %d",ChunksInFile - PMSoundStart - 1);
             }
             else
             {
@@ -369,10 +360,8 @@ void ShapeTest (void)
                 {
                     sound = j;
 
-                    US_Print ("\n Sound #");
-                    US_PrintSigned (j);
-                    US_Print ("\n Segment #");
-                    US_PrintSigned (i - PMSoundStart - DigiList[j].startpage);
+                    US_Printf ("\n Sound #%d",j);
+                    US_Printf ("\n Segment #%d",i - PMSoundStart - DigiList[j].startpage);
                 }
 
                 for (j = 0; j < pageLengths[i]; j += 32)
@@ -457,19 +446,14 @@ void ShapeTest (void)
 
 int DebugKeys (void)
 {
-    boolean esc;
     int level;
     objtype *spot;
     unsigned offset;
+    const char *isOn[] = {"OFF","ON"};
 
     if (Keyboard[sc_B])             // B = border color
     {
-        CenterWindow(20,3);
-        PrintY+=6;
-        US_Print(" Border color (0-56): ");
-        VW_UpdateScreen();
-        esc = !US_LineInput (px,py,str,NULL,true,2,0);
-        if (!esc)
+        if (US_WindowInput(str,"\v\t Border color (0-56): ",2))
         {
             level = atoi (str);
             if (level>=0 && level<=99)
@@ -498,14 +482,12 @@ int DebugKeys (void)
     }
     if (Keyboard[sc_D])             // D = Darkone's FPS counter
     {
-        CenterWindow (22,2);
-        if (fpscounter)
-            US_PrintCentered ("Darkone's FPS Counter OFF");
-        else
-            US_PrintCentered ("Darkone's FPS Counter ON");
+        fpscounter ^= 1;
+
+        US_PrintfWindow ("\v\tDarkone's FPS Counter %s",isOn[fpscounter != 0]);
         VW_UpdateScreen();
         IN_Ack();
-        fpscounter ^= 1;
+
         return 1;
     }
     if (Keyboard[sc_E])             // E = quit level
@@ -517,27 +499,29 @@ int DebugKeys (void)
 
         spot = actorat[offset];
 
-        CenterWindow (15,9);
-        snprintf (str,sizeof(str),"X: %d (%d)\n",player->x,player->x % TILEGLOBAL);
-        US_Print (str);
-        snprintf (str,sizeof(str),"Y: %d (%d)\n",player->y,player->y % TILEGLOBAL);
-        US_Print (str);
-        snprintf (str,sizeof(str),"A: %d\n",player->angle);
-        US_Print (str);
-        snprintf (str,sizeof(str),"TileX: %u\n",player->tilex);
-        US_Print (str);
-        snprintf (str,sizeof(str),"TileY: %u\n",player->tiley);
-        US_Print (str);
-        snprintf (str,sizeof(str),"1: %u",tilemap[offset]);
-        US_Print (str);
-        snprintf (str,sizeof(str)," 2:%.8X\n",(uintptr_t)spot);
-        US_Print (str);
-        snprintf (str,sizeof(str),"f 1: %u",player->areanumber);
-        US_Print (str);
-        snprintf (str,sizeof(str)," 2: %u",mapsegs[1][offset]);
-        US_Print (str);
-        snprintf (str,sizeof(str)," 3: %u",!ISPOINTER(spot) ? spotvis[offset] : spot->flags);
-        US_Print (str);
+        US_PrintfWindow (
+            "X: %d (%d)\n"
+            "Y: %d (%d)\n"
+            "A: %d\n"
+            "TileX: %u\n"
+            "TileY: %u\n"
+            "1: %u"
+            " 2:%p\n"
+            "f 1: %u"
+            " 2: %u"
+            " 3: %u\n",
+            player->x,
+            player->x % TILEGLOBAL,
+            player->y,
+            player->y % TILEGLOBAL,
+            player->angle,
+            player->tilex,
+            player->tiley,
+            tilemap[offset],
+            spot,
+            player->areanumber,
+            mapsegs[1][offset],
+            !ISPOINTER(spot) ? spotvis[offset] : spot->flags);
 
         VW_UpdateScreen();
         IN_Ack();
@@ -546,20 +530,19 @@ int DebugKeys (void)
 
     if (Keyboard[sc_G])             // G = god mode
     {
-        CenterWindow (12,2);
-        if (godmode == 0)
-            US_PrintCentered ("God mode ON");
-        else if (godmode == 1)
-            US_PrintCentered ("God (no flash)");
-        else if (godmode == 2)
-            US_PrintCentered ("God mode OFF");
-
-        VW_UpdateScreen();
-        IN_Ack();
         if (godmode != 2)
             godmode++;
         else
             godmode = 0;
+
+        if (godmode < 2)
+            US_PrintfWindow ("\v\tGod mode %s",isOn[godmode != 0]);
+        else
+            US_PrintfWindow ("\v\tGod (no flash)");
+
+        VW_UpdateScreen();
+        IN_Ack();
+
         return 1;
     }
     if (Keyboard[sc_H])             // H = hurt self
@@ -569,8 +552,7 @@ int DebugKeys (void)
     }
     else if (Keyboard[sc_I])        // I = item cheat
     {
-        CenterWindow (12,3);
-        US_PrintCentered ("Free items!");
+        US_PrintWindow ("\v\tFree items!");
         VW_UpdateScreen();
         GivePoints (100000);
         HealSelf (99);
@@ -585,12 +567,7 @@ int DebugKeys (void)
     }
     else if (Keyboard[sc_K])        // K = give keys
     {
-        CenterWindow(16,3);
-        PrintY+=6;
-        US_Print("  Give Key (1-4): ");
-        VW_UpdateScreen();
-        esc = !US_LineInput (px,py,str,NULL,true,1,0);
-        if (!esc)
+        if (US_WindowInput(str,"\v\t  Give Key (1-4): ",1))
         {
             level = atoi (str);
             if (level>0 && level<5)
@@ -600,48 +577,26 @@ int DebugKeys (void)
     }
     else if (Keyboard[sc_L])        // L = level ratios
     {
-        byte x,start,end=LRpack;
+        //
+        // KS: make a window like ShapeTest for this
+        //
+        level = gamestate.mapon;
 
-        if (end == 8)   // wolf3d
-        {
-            CenterWindow(17,10);
-            start = 0;
-        }
-        else            // sod
-        {
-            CenterWindow(17,12);
-            start = 0; end = 10;
-        }
+        if (level >= LRpack)
+            level = LRpack - 1;
 
-        while (1)
-        {
-            for(x=start;x<end;x++)
-            {
-                US_PrintUnsigned(x+1);
-                US_Print(" ");
-                US_PrintUnsigned(LevelRatios[x].time/60);
-                US_Print(":");
-                if (LevelRatios[x].time%60 < 10)
-                    US_Print("0");
-                US_PrintUnsigned(LevelRatios[x].time%60);
-                US_Print(" ");
-                US_PrintUnsigned(LevelRatios[x].kill);
-                US_Print("% ");
-                US_PrintUnsigned(LevelRatios[x].secret);
-                US_Print("% ");
-                US_PrintUnsigned(LevelRatios[x].treasure);
-                US_Print("%\n");
-            }
-            VW_UpdateScreen();
-            IN_Ack();
-            if (end == 10 && gamestate.mapon > 9)
-            {
-                start = 10; end = 20;
-                CenterWindow(17,12);
-            }
-            else
-                break;
-        }
+        US_PrintfWindow (
+            "\v\t%2d %02d:%02d "
+            "%3d%% %3d%% %3d%% ",
+            level + 1,
+            LevelRatios[level].time / 60,
+            LevelRatios[level].time % 60,
+            LevelRatios[level].kill,
+            LevelRatios[level].secret,
+            LevelRatios[level].treasure);
+
+        VW_UpdateScreen();
+        IN_Ack();
 
         return 1;
     }
@@ -649,11 +604,9 @@ int DebugKeys (void)
     else if (Keyboard[sc_M])        // M = Map reveal
     {
         mapreveal ^= true;
-        CenterWindow (18,3);
-        if (mapreveal)
-            US_PrintCentered ("Map reveal ON");
-        else
-            US_PrintCentered ("Map reveal OFF");
+
+        US_PrintfWindow ("\v\tMap reveal %s",isOn[mapreveal != 0]);
+
         VW_UpdateScreen();
         IN_Ack ();
         return 1;
@@ -661,12 +614,10 @@ int DebugKeys (void)
 #endif
     else if (Keyboard[sc_N])        // N = no clip
     {
-        noclip^=1;
-        CenterWindow (18,3);
-        if (noclip)
-            US_PrintCentered ("No clipping ON");
-        else
-            US_PrintCentered ("No clipping OFF");
+        noclip ^= 1;
+
+        US_PrintfWindow ("\v\tNo clipping %s",isOn[noclip != 0]);
+
         VW_UpdateScreen();
         IN_Ack ();
         return 1;
@@ -687,17 +638,13 @@ int DebugKeys (void)
         Quit (NULL);
     else if (Keyboard[sc_S])        // S = slow motion
     {
-        CenterWindow(30,3);
-        PrintY+=6;
-        US_Print(" Slow Motion steps (default 14): ");
-        VW_UpdateScreen();
-        esc = !US_LineInput (px,py,str,NULL,true,2,0);
-        if (!esc)
+        if (US_WindowInput(str,"\v\t Slow Motion steps (0-50): ",2))
         {
             level = atoi (str);
             if (level>=0 && level<=50)
                 singlestep = level;
         }
+
         return 1;
     }
     else if (Keyboard[sc_T])        // T = shape test
@@ -707,12 +654,7 @@ int DebugKeys (void)
     }
     else if (Keyboard[sc_V])        // V = extra VBLs
     {
-        CenterWindow(30,3);
-        PrintY+=6;
-        US_Print("  Add how many extra VBLs(0-8): ");
-        VW_UpdateScreen();
-        esc = !US_LineInput (px,py,str,NULL,true,1,0);
-        if (!esc)
+        if (US_WindowInput(str,"\v\t  Add how many extra VBLs(0-8): ",1))
         {
             level = atoi (str);
             if (level>=0 && level<=8)
@@ -722,16 +664,11 @@ int DebugKeys (void)
     }
     else if (Keyboard[sc_W])        // W = warp to level
     {
-        CenterWindow(26,3);
-        PrintY+=6;
 #ifndef SPEAR
-        US_Print("  Warp to which level(1-10): ");
+        if (US_WindowInput(str,"\v\tWarp to which level(1-10): ",2))
 #else
-        US_Print("  Warp to which level(1-21): ");
+        if (US_WindowInput(str,"\v\tWarp to which level(1-21): ",2))
 #endif
-        VW_UpdateScreen();
-        esc = !US_LineInput (px,py,str,NULL,true,2,0);
-        if (!esc)
         {
             level = atoi (str);
 #ifndef SPEAR
@@ -748,8 +685,7 @@ int DebugKeys (void)
     }
     else if (Keyboard[sc_X])        // X = item cheat
     {
-        CenterWindow (12,3);
-        US_PrintCentered ("Extra stuff!");
+        US_PrintWindow ("\v\tExtra stuff!");
         VW_UpdateScreen();
         // DEBUG: put stuff here
         IN_Ack ();
@@ -759,9 +695,7 @@ int DebugKeys (void)
     else if(Keyboard[sc_Z] && curSky)
     {
         char defstr[15];
-
-        CenterWindow(34,4);
-        PrintY+=6;
+// KS: sort out this mess...
         US_Print("  Recalculate sky with seed: ");
         int seedpx = px, seedpy = py;
         US_PrintUnsigned(curSky->seed);
@@ -788,8 +722,7 @@ int DebugKeys (void)
         }
         else
         {
-            CenterWindow (18,3);
-            US_PrintCentered ("Illegal color map!");
+            US_PrintWindow ("\v\tIllegal color map!");
             VW_UpdateScreen();
             IN_Ack ();
         }
