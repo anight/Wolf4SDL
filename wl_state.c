@@ -823,8 +823,17 @@ void KillActor (objtype *ob)
 {
     int     tilex,tiley;
 
-    tilex = ob->x >> TILESHIFT;         // drop item on center
+    //
+    // drop item on center
+    //
+    tilex = ob->x >> TILESHIFT;
     tiley = ob->y >> TILESHIFT;
+
+    if (DEMOCOND_ORIG)
+    {
+        ob->tilex = tilex;
+        ob->tiley = tiley;
+    }
 
     switch (ob->obclass)
     {
