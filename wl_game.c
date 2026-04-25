@@ -1671,7 +1671,6 @@ void GameLoop (void)
 #else
                 VW_FadePaletteOut (0,17,17,300);
 #endif
-                ClearMenuBorders ();
                 ClearMemory ();
 
                 Victory ();
