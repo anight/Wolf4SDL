@@ -1117,6 +1117,7 @@ extern  void        *demobuffer;
 void    InitActorList (void);
 objtype *GetNewActor (void);
 void    PlayLoop (void);
+void    CenterWindow (word w, word h);
 void    InitRedShifts (void);
 void    FinishPaletteShifts (void);
 void    RemoveObj (objtype *gone);

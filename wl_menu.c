@@ -1010,9 +1010,9 @@ DrawNewEpisode (void)
     PrintY = 2;
     WindowX = 0;
 #ifdef SPANISH
-    US_Print ("\tCual episodio jugar?");
+    US_CPrint ("Cual episodio jugar?");
 #else
-    US_Print ("\tWhich episode to play?");
+    US_CPrint ("Which episode to play?");
 #endif
 #endif
 
@@ -1518,13 +1518,11 @@ PrintLSEntry (int w, int color)
 int
 CP_SaveGame (int quick)
 {
-    int w,x,y;
     int which, exit = 0;
     FILE *file;
     char name[13];
     char savepath[300];
-    char input[MaxGameName];
-    WindowRec wr;
+    char input[32];
 
     snprintf (name,sizeof(name),"%s",SaveName);
 
@@ -1549,8 +1547,8 @@ CP_SaveGame (int quick)
 
             snprintf (input,sizeof(input),"%s",SaveGameNames[which]);
 
-            fwrite (input, 1, sizeof(input), file);
-            fseek (file, sizeof(input), SEEK_SET);
+            fwrite (input, 1, 32, file);
+            fseek (file, 32, SEEK_SET);
             SaveTheGame (file, 0, 0);
             fclose (file);
 
@@ -1569,13 +1567,6 @@ CP_SaveGame (int quick)
         which = HandleMenu (&LSItems, &LSMenu[0], TrackWhichGame);
         if (which >= 0)
         {
-            w = LSItems.indent;
-            x = LSM_X + w + 1;
-            y = LSM_Y + (which * 13) + 1;
-            w = LSM_W - 16 - w;
-
-            US_SaveWindow (&wr);
-
             //
             // OVERWRITE EXISTING SAVEGAME?
             //
@@ -1588,13 +1579,13 @@ CP_SaveGame (int quick)
 #endif
                 {
                     DrawLoadSaveScreen (1);
-                    US_SaveWindow (&wr);
                     continue;
                 }
                 else
                 {
                     DrawLoadSaveScreen (1);
                     PrintLSEntry (which, HIGHLIGHT);
+                    VW_UpdateScreen ();
                 }
             }
 
@@ -1609,12 +1600,9 @@ CP_SaveGame (int quick)
                          LSM_W - LSItems.indent - 16, 10, BKGDCOLOR);
             VW_UpdateScreen ();
 
-            WindowX = x;
-            WindowY = y;
-            WindowW = w;
-            WindowH = 13;
-
-            if (US_LineInput(x + 1,y,input,input,sizeof(input) - 1))
+            if (US_LineInput
+                (LSM_X + LSItems.indent + 2, LSM_Y + which * 13 + 1, input, input, true, 31,
+                 LSM_W - LSItems.indent - 30))
             {
                 SaveGamesAvail[which] = 1;
                 snprintf (SaveGameNames[which],sizeof(SaveGameNames[which]),"%s",input);
@@ -1626,8 +1614,8 @@ CP_SaveGame (int quick)
 
                 unlink (savepath);
                 file = fopen (savepath, "wb");
-                fwrite (input, sizeof(input), 1, file);
-                fseek (file, sizeof(input), SEEK_SET);
+                fwrite (input, 32, 1, file);
+                fseek (file, 32, SEEK_SET);
 
                 DrawLSAction (1);
                 SaveTheGame (file, LSA_X + 8, LSA_Y + 5);
@@ -1648,7 +1636,6 @@ CP_SaveGame (int quick)
                 PrintLSEntry (which, HIGHLIGHT);
                 VW_UpdateScreen ();
                 SD_PlaySound (ESCPRESSEDSND);
-                US_RestoreWindow (&wr);
                 continue;
             }
 
@@ -1746,7 +1733,7 @@ DrawMouseSens (void)
     WindowW = 320;
     PrintY = 82;
     SETFONTCOLOR (READCOLOR, BKGDCOLOR);
-    US_Print ("\t"STR_MOUSEADJ);
+    US_CPrint (STR_MOUSEADJ);
 
     SETFONTCOLOR (TEXTCOLOR, BKGDCOLOR);
 #ifdef SPANISH
@@ -2019,8 +2006,8 @@ int ChangeDisplay (int blank)
 
 void DrawDisplayMenu (screen_t *scr)
 {
-    int        x,y;
-    stringtype s;
+    int  x,y;
+    word w,h;
 
     ClearMScreen ();
 
@@ -2055,9 +2042,9 @@ void DrawDisplayMenu (screen_t *scr)
     y += 13;
     VW_DrawPic (x,y,selectedpic[(screen.flags & SC_FULLSCREEN) != 0]);
 
-    VW_MeasurePropString (DispMenu[DISP_RATIO].string,&s,'\0');
+    VW_MeasurePropString (DispMenu[DISP_RATIO].string,&w,&h);
 
-    PrintX = WindowX + s.width + 3;
+    PrintX = WindowX + w + 3;
     PrintY = y + 13 - 3;
 
     if (scr->heightoffset)
@@ -2065,12 +2052,14 @@ void DrawDisplayMenu (screen_t *scr)
     else
         US_Print ("16:10");
 
-    VW_MeasurePropString (DispMenu[DISP_RES].string,&s,'\0');
+    VW_MeasurePropString (DispMenu[DISP_RES].string,&w,&h);
 
-    PrintX = WindowX + s.width + 3;
+    PrintX = WindowX + w + 3;
     PrintY += 13;
 
-    US_Printf ("%dx%d",scr->width,scr->height);
+    snprintf (str,sizeof(str),"%dx%d",scr->width,scr->height);
+
+    US_Print (str);
 
     VW_UpdateScreen ();
 }
@@ -2530,7 +2519,7 @@ DrawCustomScreen (void)
 
 #ifndef SPEAR
     PrintY = CST_Y;
-    US_Print ("\tMouse\n");
+    US_CPrint ("Mouse\n");
 #else
     PrintY = CST_Y + 13;
     VW_DrawPic (128, 48, C_MOUSEPIC);
@@ -2567,7 +2556,7 @@ DrawCustomScreen (void)
     //
 #ifndef SPEAR
     SETFONTCOLOR (READCOLOR, BKGDCOLOR);
-    US_Print ("\tJoystick/Gravis GamePad\n");
+    US_CPrint ("Joystick/Gravis GamePad\n");
 #else
     PrintY += 13;
     VW_DrawPic (40, 88, C_JOYSTICKPIC);
@@ -2607,7 +2596,7 @@ DrawCustomScreen (void)
     //
 #ifndef SPEAR
     SETFONTCOLOR (READCOLOR, BKGDCOLOR);
-    US_Print ("\tKeyboard\n");
+    US_CPrint ("Keyboard\n");
 #else
     PrintY += 13;
 #endif
@@ -2906,7 +2895,9 @@ DrawChangeView (int view)
     WindowY = PrintY = screen.baseheight - (STATUSLINES - 1);
     SETFONTCOLOR (HIGHLIGHT,BKGDCOLOR);
 
-    US_Print ("\t"STR_SIZE1 "\n\t" STR_SIZE2 "\n\t" STR_SIZE3);
+    US_CPrint (STR_SIZE1 "\n");
+    US_CPrint (STR_SIZE2 "\n");
+    US_CPrint (STR_SIZE3);
 #endif
     VW_UpdateScreen ();
 }
@@ -3795,33 +3786,37 @@ GetYorN (int x, int y, int pic)
 // PRINT A MESSAGE IN A WINDOW
 //
 ////////////////////////////////////////////////////////////////////
-void Message (const char *string)
+void
+Message (const char *string)
 {
-    int        cursorwidth;
-    stringtype s;
+    int h = 0, w = 0, mw = 0, i, len = (int) strlen(string);
+    fontstruct *font;
 
     fontnumber = 1;
+    font = (fontstruct *) grsegs[STARTFONT + fontnumber];
+    h = font->height;
+    for (i = 0; i < len; i++)
+    {
+        if (string[i] == '\n')
+        {
+            if (w > mw)
+                mw = w;
+            w = 0;
+            h += font->height;
+        }
+        else
+            w += font->width[(byte)string[i]];
+    }
 
-    VW_MeasurePropString (string,&s,'\0');
+    if (w + 10 > mw)
+        mw = w + 10;
 
-    //
-    // make sure there's room for the cursor on
-    // the last line
-    //
-    cursorwidth = fontsegs[fontnumber]->width['_'] + 2;
+    PrintY = (WindowH / 2) - h / 2;
+    PrintX = WindowX = 160 - mw / 2;
 
-    if (s.lastwidth + cursorwidth > s.width)
-        s.width = s.lastwidth + cursorwidth;
-
-    PrintX = WindowX = (WindowW / 2) - (s.width / 2);
-    PrintY = (WindowH / 2) - (s.height / 2);
-
-    s.width += cursorwidth;
-    s.height += cursorwidth;
-
-    DrawWindow (WindowX - 5,PrintY - 5,s.width,s.height,TEXTCOLOR);
-    DrawOutline (WindowX - 5,PrintY - 5,s.width,s.height,BLACK,HIGHLIGHT);
-    SETFONTCOLOR (BLACK,TEXTCOLOR);
+    DrawWindow (WindowX - 5, PrintY - 5, mw + 10, h + 10, TEXTCOLOR);
+    DrawOutline (WindowX - 5, PrintY - 5, mw + 10, h + 10, 0, HIGHLIGHT);
+    SETFONTCOLOR (0, TEXTCOLOR);
     US_Print (string);
     VW_UpdateScreen ();
 }

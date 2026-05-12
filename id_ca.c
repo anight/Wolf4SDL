@@ -490,9 +490,6 @@ void CAL_SetupGrFile (void)
     SafeFree (grstarts);
 
     fclose (file);
-
-    for (i = 0; i < NUMFONT; i++)
-        fontsegs[i] = (fontstruct *)grsegs[STARTFONT + i];
 }
 
 

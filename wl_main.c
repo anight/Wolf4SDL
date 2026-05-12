@@ -912,9 +912,9 @@ void FinishSignon (void)
     SETFONTCOLOR(14,4);
 
     #ifdef SPANISH
-    US_Print ("\tOprima una tecla");
+    US_CPrint ("Oprima una tecla");
     #else
-    US_Print ("\tPress a key");
+    US_CPrint ("Press a key");
     #endif
 
     #endif
@@ -931,9 +931,9 @@ void FinishSignon (void)
     SETFONTCOLOR(10,4);
 
     #ifdef SPANISH
-    US_Print ("\tpensando...");
+    US_CPrint ("pensando...");
     #else
-    US_Print ("\tWorking...");
+    US_CPrint ("Working...");
     #endif
 
     VW_UpdateScreen();
@@ -1203,7 +1203,7 @@ void DoJukebox(void)
     PrintY=15;
     WindowX = 0;
     WindowY = 320;
-    US_Print ("\tRobert's Jukebox");
+    US_CPrint ("Robert's Jukebox");
 
     SETFONTCOLOR (TEXTCOLOR,BKGDCOLOR);
     VW_UpdateScreen();

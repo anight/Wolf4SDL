@@ -38,7 +38,6 @@ screen_t screen;
 unsigned bordercolor;
 
 pictabletype	*pictable;
-fontstruct      *fontsegs[NUMFONT];
 
 int     px,py;
 byte	fontcolor,backcolor;
@@ -770,11 +769,11 @@ void VW_DrawPropString (const char *string)
 	dest = VW_LockSurface(screen.buffer);
 	if(dest == NULL) return;
 
-	font = fontsegs[fontnumber];
+	font = (fontstruct *)grsegs[STARTFONT + fontnumber];
 	height = font->height;
 	dest += screen.bufferofs + (screen.scale * (ylookup[py] + px));
 
-	while ((ch = (byte)*string++) >= ' ')
+	while ((ch = (byte)*string++) != 0)
 	{
 		width = step = font->width[ch];
 		source = ((byte *)font)+font->location[ch];
@@ -805,59 +804,19 @@ void VW_DrawPropString (const char *string)
 =
 = VW_MeasurePropString
 =
-= Fill the struct with information about the string
-=
-= Loops over the string until a null byte or the given
-= terminating character is found
-=
 ===================
 */
 
-void VW_MeasurePropString (const char *string, stringtype *s, int terminator)
+void VW_MeasurePropString (const char *string, word *width, word *height)
 {
-    int        widest,longest;
-    int        ch;
     fontstruct *font;
 
-    font = fontsegs[fontnumber];
+    font = (fontstruct *)grsegs[STARTFONT + fontnumber];
 
-    s->height = font->height;
-    s->lines = 1;
-    s->width = s->length = widest = longest = 0;
+    *height = font->height;
 
-	while ((ch = (byte)*string++) != '\0' && ch != terminator)
-    {
-        if (ch >= ' ')
-        {
-            s->width += font->width[ch];
-            s->length++;
-        }
-
-        if (ch == '\n')
-        {
-            //
-            // save the widest/longest line
-            //
-            if (s->width > widest)
-                widest = s->width;
-
-            if (s->length > longest)
-                longest = s->length;
-
-            s->width = s->length = 0;
-
-            s->lines++;
-            s->height += font->height;
-        }
-    }
-
-    s->lastwidth = s->width;
-
-    if (widest > s->width)
-        s->width = widest;
-
-    if (longest > s->length)
-        s->length = longest;
+    for (*width = 0; *string; string++)
+        *width += font->width[*((byte *)string)];    // proportional width
 }
 
 

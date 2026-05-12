@@ -144,8 +144,11 @@ SetSoundLoc(fixed gx,fixed gy)
     rightchannel = righttable[x][y + ATABLEMAX];
 
 #if 0
-    US_PrintfWindow ("\v\t%d,%d",leftchannel,rightchannel);
-    VW_UpdateScreen ();
+    CenterWindow(8,1);
+    US_PrintSigned(leftchannel);
+    US_Print(",");
+    US_PrintSigned(rightchannel);
+    VW_UpdateScreen();
 #endif
 }
 
@@ -1082,10 +1085,14 @@ void FinishDemoRecord (int8_t *demobuffer)
     *demoptr++ = (int8_t)length;
     *demoptr++ = (int8_t)(length >> 8);
 
+    CenterWindow(24,3);
+    PrintY+=6;
     fontnumber=0;
     SETFONTCOLOR(0,15);
+    US_Print(" Demo number (0-9): ");
+    VW_UpdateScreen();
 
-    if (US_WindowInput(str,"\v\t Demo number (0-9): ",1))
+    if (US_LineInput (px,py,str,NULL,true,1,0))
     {
         level = atoi (str);
         if (level>=0 && level<=9)
@@ -1110,10 +1117,12 @@ void FinishDemoRecord (int8_t *demobuffer)
 
 void RecordDemo (void)
 {
-    int  level,esc,maps;
+    int  level,maps;
     void *demobuffer;
     char buf[128];
 
+    CenterWindow(26,3);
+    PrintY+=6;
     fontnumber=0;
     SETFONTCOLOR(0,15);
 #ifndef SPEAR
@@ -1128,9 +1137,9 @@ void RecordDemo (void)
     VW_UpdateScreen();
     VW_FadeIn ();
 
-    snprintf (buf,sizeof(buf),"\v\t  Demo which level(1-%d): ",maps);
+    snprintf (buf,sizeof(buf),"  Demo which level(1-%d): ",maps);
 
-    if (!US_WindowInput(str,buf,2))
+    if (!US_LineInput(px,py,str,NULL,true,2,0))
         return;
 
     level = atoi (str);

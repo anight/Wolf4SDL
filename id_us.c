@@ -3,8 +3,14 @@
 //	ID_US.c - User Manager - General routines
 //	v1.1d1
 //	By Jason Blochowiak
+//	Hacked up for Catacomb 3D
+//
+
 //
 //	This module handles dealing with user input & feedback
+//
+//	Depends on: Input Mgr, View Mgr, some variables from the Sound, Caching,
+//		and Refresh Mgrs, Memory Mgr for background save/restore
 //
 //	Globals:
 //		ingame - Flag set by game indicating if a game is in progress
@@ -22,29 +28,29 @@
 #endif
 
 //	Global variables
-int PrintX,PrintY;
-int WindowX,WindowY,WindowW,WindowH;
+		word		PrintX,PrintY;
+		word		WindowX,WindowY,WindowW,WindowH;
 
 //	Internal variables
 #define	ConfigVersion	1
 
 static	boolean		US_Started;
 
-HighScore	Scores[MaxScores] =
-{
-    {"id software-'92",10000,1},
-    {"Adrian Carmack",10000,1},
-    {"John Carmack",10000,1},
-    {"Kevin Cloud",10000,1},
-    {"Tom Hall",10000,1},
-    {"John Romero",10000,1},
-    {"Jay Wilbur",10000,1},
-};
+		SaveGame	Games[MaxSaveGames];
+		HighScore	Scores[MaxScores] =
+					{
+						{"id software-'92",10000,1},
+						{"Adrian Carmack",10000,1},
+						{"John Carmack",10000,1},
+						{"Kevin Cloud",10000,1},
+						{"Tom Hall",10000,1},
+						{"John Romero",10000,1},
+						{"Jay Wilbur",10000,1},
+					};
 
-int rndindex;
+int rndindex = 0;
 
-static byte rndtable[] =
-{
+static byte rndtable[] = {
       0,   8, 109, 220, 222, 241, 149, 107,  75, 248, 254, 140,  16,  66,
 	 74,  21, 211,  47,  80, 242, 154,  27, 205, 128, 161,  89,  77,  36,
 	 95, 110,  85,  48, 212, 140, 211, 249,  22,  79, 200,  50,  28, 188,
@@ -63,8 +69,7 @@ static byte rndtable[] =
 	 71,  17, 161,  93, 186,  87, 244, 138,  20,  52, 123, 251,  26,  36,
 	 17,  46,  52, 231, 232,  76,  31, 221,  84,  37, 216, 165, 212, 106,
 	197, 242,  98,  43,  39, 175, 254, 145, 190,  84, 118, 222, 187, 136,
-	120, 163, 236, 249,
-};
+	120, 163, 236, 249 };
 
 //	Internal routines
 
@@ -75,12 +80,12 @@ static byte rndtable[] =
 //	US_Startup() - Starts the User Mgr
 //
 ///////////////////////////////////////////////////////////////////////////
-void US_Startup (void)
+void US_Startup()
 {
 	if (US_Started)
 		return;
 
-	US_InitRndT (true);		// Initialize the random number generator
+	US_InitRndT(true);		// Initialize the random number generator
 
 	US_Started = true;
 }
@@ -91,7 +96,8 @@ void US_Startup (void)
 //	US_Shutdown() - Shuts down the User Mgr
 //
 ///////////////////////////////////////////////////////////////////////////
-void US_Shutdown (void)
+void
+US_Shutdown(void)
 {
 	if (!US_Started)
 		return;
@@ -99,196 +105,207 @@ void US_Shutdown (void)
 	US_Started = false;
 }
 
+//	Window/Printing routines
 
-/*
-=============================================================================
-
-                    WINDOW/PRINTING ROUTINES
-
-=============================================================================
-*/
-
-
-/*
-=====================
-=
-= US_Print
-=
-= Prints a string in the current window. Newlines are supported
-=
-= If the line starts with '\t', it will be centered horizontally
-=
-=====================
-*/
-
-void US_Print (const char *string)
+///////////////////////////////////////////////////////////////////////////
+//
+//	US_Print() - Prints a string in the current window. Newlines are
+//		supported.
+//
+///////////////////////////////////////////////////////////////////////////
+void
+US_Print(const char *sorg)
 {
-	stringtype s;
+	char c;
+	char *sstart = strdup(sorg);
+	char *s = sstart;
+	char *se;
+	word w,h;
 
-	while (*string)
+	while (*s)
 	{
-		VW_MeasurePropString (string,&s,'\n');
+		se = s;
+		while ((c = *se)!=0 && (c != '\n'))
+			se++;
+		*se = '\0';
 
-        if (*string == '\t')
-        {
-            string++;
-            PrintX = WindowX + ((WindowW - s.width) / 2);
-        }
-
-        if (WindowW <= s.width)
-            Quit ("String \"%s\" exceeds width",string);
-
+		VW_MeasurePropString(s,&w,&h);
 		px = PrintX;
 		py = PrintY;
-		VW_DrawPropString (string);
+		VW_DrawPropString(s);
 
-		string += s.length;
-
-		if (*string == '\n')
+		s = se;
+		if (c)
 		{
-			string++;
+			*se = c;
+			s++;
 
 			PrintX = WindowX;
-			PrintY += fontsegs[fontnumber]->height;
+			PrintY += h;
 		}
 		else
-			PrintX += s.width;
+			PrintX += w;
 	}
+
+	SafeFree (sstart);
 }
-
-
-/*
-=====================
-=
-= US_PrintWindow
-=
-= Generates a window and prints a string in it
-=
-=====================
-*/
-
-void US_PrintWindow (const char *string)
-{
-    string = US_GenerateWindowFromString(string,0);
-
-    US_Print (string);
-}
-
-
-/*
-=====================
-=
-= US_GenerateWindowFromString
-=
-= Generates a window using info from the given string
-=
-= If the first character in the string is '\v',
-= the string will be centered vertically
-=
-= Returns the string so that the caller can start printing
-= after any formatting characters have been parsed
-=
-=====================
-*/
-
-const char *US_GenerateWindowFromString (const char *string, int maxchars)
-{
-    int        i,widest;
-    int        extralines = 1;
-    stringtype s;
-    fontstruct *font;
-
-    font = fontsegs[fontnumber];
-
-    VW_MeasurePropString (string,&s,'\0');
-
-    if (*string == '\v')
-    {
-        string++;
-        extralines++;
-    }
-
-    //
-    // if input is expected, add enough width to fit
-    // the widest character in the current font in the
-    // entire input
-    //
-    if (maxchars > 0)
-    {
-        widest = 0;
-
-        for (i = 0; i < lengthof(font->width); i++)
-        {
-            if (font->width[i] > widest)
-                widest = font->width[i];
-        }
-
-        //
-        // round up widest to the next tile8
-        //
-        if (widest % 8)
-        {
-            widest += 8;
-            widest -= widest % 8;
-        }
-
-        s.width += maxchars * widest;
-
-        if (*string == '\t')
-            s.width += 8;     // centered text
-    }
-
-    US_CenterWindow ((s.width + 7) / 8,s.lines + extralines);
-
-    if (extralines > 1)
-        PrintY = WindowY + ((WindowH - font->height) / 2);
-
-    return string;
-}
-
 
 ///////////////////////////////////////////////////////////////////////////
 //
-//  US_Printf() - Prints a formatted string
+//	US_PrintUnsigned() - Prints an unsigned long
+//
+///////////////////////////////////////////////////////////////////////////
+void
+US_PrintUnsigned(longword n)
+{
+	char	buffer[32];
+	snprintf(buffer,sizeof(buffer), "%u", n);
+
+	US_Print(buffer);
+}
+
+///////////////////////////////////////////////////////////////////////////
+//
+//	US_PrintSigned() - Prints a signed long
+//
+///////////////////////////////////////////////////////////////////////////
+void
+US_PrintSigned(int32_t n)
+{
+	char	buffer[32];
+
+	US_Print(ltoa(n,buffer,10));
+}
+
+///////////////////////////////////////////////////////////////////////////
+//
+//	USL_PrintInCenter() - Prints a string in the center of the given rect
+//
+///////////////////////////////////////////////////////////////////////////
+void
+USL_PrintInCenter(const char *s,Rect r)
+{
+	word	w,h,
+			rw,rh;
+
+	VW_MeasurePropString(s,&w,&h);
+	rw = r.lr.x - r.ul.x;
+	rh = r.lr.y - r.ul.y;
+
+	px = r.ul.x + ((rw - w) / 2);
+	py = r.ul.y + ((rh - h) / 2);
+	VW_DrawPropString(s);
+}
+
+///////////////////////////////////////////////////////////////////////////
+//
+//	US_PrintCentered() - Prints a string centered in the current window.
+//
+///////////////////////////////////////////////////////////////////////////
+void
+US_PrintCentered(const char *s)
+{
+	Rect	r;
+
+	r.ul.x = WindowX;
+	r.ul.y = WindowY;
+	r.lr.x = r.ul.x + WindowW;
+	r.lr.y = r.ul.y + WindowH;
+
+	USL_PrintInCenter(s,r);
+}
+
+///////////////////////////////////////////////////////////////////////////
+//
+//	US_CPrintLine() - Prints a string centered on the current line and
+//		advances to the next line. Newlines are not supported.
+//
+///////////////////////////////////////////////////////////////////////////
+void
+US_CPrintLine(const char *s)
+{
+	word	w,h;
+
+	VW_MeasurePropString(s,&w,&h);
+
+	if (w > WindowW)
+		Quit("US_CPrintLine() - String exceeds width");
+	px = WindowX + ((WindowW - w) / 2);
+	py = PrintY;
+	VW_DrawPropString(s);
+	PrintY += h;
+}
+
+///////////////////////////////////////////////////////////////////////////
+//
+//  US_CPrint() - Prints a string centered in the current window.
+//      Newlines are supported.
+//
+///////////////////////////////////////////////////////////////////////////
+void
+US_CPrint(const char *sorg)
+{
+	char	c;
+	char *sstart = strdup(sorg);
+	char *s = sstart;
+	char *se;
+
+	while (*s)
+	{
+		se = s;
+		while ((c = *se)!=0 && (c != '\n'))
+			se++;
+		*se = '\0';
+
+		US_CPrintLine(s);
+
+		s = se;
+		if (c)
+		{
+			*se = c;
+			s++;
+		}
+	}
+
+	SafeFree (sstart);
+}
+
+///////////////////////////////////////////////////////////////////////////
+//
+//  US_Printf() - Prints a formatted string in the current window.
+//      Newlines are supported.
 //
 ///////////////////////////////////////////////////////////////////////////
 
-void US_Printf (const char *formatStr, ...)
+void US_Printf(const char *formatStr, ...)
 {
-    char    strbuf[256];
+    char strbuf[256];
     va_list vlist;
-    int     len;
-
-    va_start (vlist,formatStr);
-    len = vsnprintf(strbuf,sizeof(strbuf),formatStr,vlist);
-    va_end (vlist);
-
-    if (len < 0 || len >= sizeof(strbuf))
+    va_start(vlist, formatStr);
+    int len = vsnprintf(strbuf, sizeof(strbuf), formatStr, vlist);
+    va_end(vlist);
+    if(len <= -1 || len >= sizeof(strbuf))
         strbuf[sizeof(strbuf) - 1] = 0;
-
-    US_Print (strbuf);
+    US_Print(strbuf);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 //
-//  US_PrintfWindow() - Prints a formatted string in a window
+//  US_CPrintf() - Prints a formatted string centered in the current window.
+//      Newlines are supported.
 //
 ///////////////////////////////////////////////////////////////////////////
 
-void US_PrintfWindow (const char *formatStr, ...)
+void US_CPrintf(const char *formatStr, ...)
 {
-    char    strbuf[256];
+    char strbuf[256];
     va_list vlist;
-    int     len;
-
-    va_start (vlist,formatStr);
-    len = vsnprintf(strbuf,sizeof(strbuf),formatStr,vlist);
-    va_end (vlist);
-
-    if (len < 0 || len >= sizeof(strbuf))
+    va_start(vlist, formatStr);
+    int len = vsnprintf(strbuf, sizeof(strbuf), formatStr, vlist);
+    va_end(vlist);
+    if(len <= -1 || len >= sizeof(strbuf))
         strbuf[sizeof(strbuf) - 1] = 0;
-
-    US_PrintWindow (strbuf);
+    US_CPrint(strbuf);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -297,10 +314,10 @@ void US_PrintfWindow (const char *formatStr, ...)
 //		cursor
 //
 ///////////////////////////////////////////////////////////////////////////
-void US_ClearWindow (void)
+void
+US_ClearWindow(void)
 {
-	VW_Bar (WindowX,WindowY,WindowW,WindowH,WHITE);
-
+	VW_Bar(WindowX,WindowY,WindowW,WindowH,WHITE);
 	PrintX = WindowX;
 	PrintY = WindowY;
 }
@@ -310,10 +327,11 @@ void US_ClearWindow (void)
 //	US_DrawWindow() - Draws a frame and sets the current window parms
 //
 ///////////////////////////////////////////////////////////////////////////
-void US_DrawWindow (int x, int y, int w, int h)
+void
+US_DrawWindow(word x,word y,word w,word h)
 {
-    int	i;
-    int sx,sy,sw,sh;
+	word	i,
+			sx,sy,sw,sh;
 
 	WindowX = x * 8;
 	WindowY = y * 8;
@@ -328,24 +346,24 @@ void US_DrawWindow (int x, int y, int w, int h)
 	sw = (w + 1) * 8;
 	sh = (h + 1) * 8;
 
-	US_ClearWindow ();
+	US_ClearWindow();
 
-	VW_DrawTile8 (sx,sy,0);
-	VW_DrawTile8 (sx,sy + sh,5);
+	VW_DrawTile8(sx,sy,0);
+	VW_DrawTile8(sx,sy + sh,5);
 
-	for (i = sx + 8; i <= sx + sw - 8; i += 8)
+	for (i = sx + 8;i <= sx + sw - 8;i += 8)
     {
-		VW_DrawTile8 (i,sy,1);
-		VW_DrawTile8 (i,sy + sh,6);
+		VW_DrawTile8(i,sy,1);
+		VW_DrawTile8(i,sy + sh,6);
     }
 
-	VW_DrawTile8 (i,sy,2);
-	VW_DrawTile8 (i,sy + sh,7);
+	VW_DrawTile8(i,sy,2);
+	VW_DrawTile8(i,sy + sh,7);
 
-	for (i = sy + 8; i <= sy + sh - 8; i += 8)
+	for (i = sy + 8;i <= sy + sh - 8;i += 8)
     {
-		VW_DrawTile8 (sx,i,3);
-		VW_DrawTile8 (sx + sw,i,4);
+		VW_DrawTile8(sx,i,3);
+		VW_DrawTile8(sx + sw,i,4);
     }
 }
 
@@ -355,9 +373,10 @@ void US_DrawWindow (int x, int y, int w, int h)
 //		middle of the screen
 //
 ///////////////////////////////////////////////////////////////////////////
-void US_CenterWindow (int w, int h)
+void
+US_CenterWindow(word w,word h)
 {
-	US_DrawWindow (((MaxX / 8) - w) / 2,((MaxY / 8) - h) / 2,w,h);
+	US_DrawWindow(((MaxX / 8) - w) / 2,((MaxY / 8) - h) / 2,w,h);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -366,7 +385,8 @@ void US_CenterWindow (int w, int h)
 //		later restoration
 //
 ///////////////////////////////////////////////////////////////////////////
-void US_SaveWindow (WindowRec *win)
+void
+US_SaveWindow(WindowRec *win)
 {
 	win->x = WindowX;
 	win->y = WindowY;
@@ -383,7 +403,8 @@ void US_SaveWindow (WindowRec *win)
 //		record
 //
 ///////////////////////////////////////////////////////////////////////////
-void US_RestoreWindow (WindowRec *win)
+void
+US_RestoreWindow(WindowRec *win)
 {
 	WindowX = win->x;
 	WindowY = win->y;
@@ -401,96 +422,84 @@ void US_RestoreWindow (WindowRec *win)
 //	USL_XORICursor() - XORs the I-bar text cursor. Used by US_LineInput()
 //
 ///////////////////////////////////////////////////////////////////////////
-static void USL_XORICursor (int x, int y, char *string, int cursor)
+static void
+USL_XORICursor(int x,int y,const char *s,word cursor)
 {
-    static boolean status;      // VGA doesn't XOR...
-    stringtype s;
-    int        ch,oldfontcolor;
+	static	boolean	status;		// VGA doesn't XOR...
+	char	buf[MaxString];
+	int		temp;
+	word	w,h;
 
-    //
-    // save the char at cursor and
-    // stick a null byte in
-    //
-	ch = string[cursor];
-	string[cursor] = '\0';
-	VW_MeasurePropString (string,&s,'\0');
-    string[cursor] = ch;    // restore old char
+	snprintf (buf,sizeof(buf),"%s",s);
+	buf[cursor] = '\0';
+	VW_MeasurePropString(buf,&w,&h);
 
-	px = x + s.width - 1;
+	px = x + w - 1;
 	py = y;
-
-	if (status ^= 1)
-		VW_DrawPropString ("\x80");
+	if (status^=1)
+		VW_DrawPropString("\x80");
 	else
 	{
-		oldfontcolor = fontcolor;
+		temp = fontcolor;
 		fontcolor = backcolor;
-		VW_DrawPropString ("\x80");
-		fontcolor = oldfontcolor;
+		VW_DrawPropString("\x80");
+		fontcolor = temp;
 	}
 }
 
-char USL_RotateChar (char ch, int dir)
+char USL_RotateChar(char ch, int dir)
 {
     static const char charSet[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ.,-!?0123456789";
     const int numChars = sizeof(charSet) / sizeof(char) - 1;
     int i;
-
-    for (i = 0; i < numChars; i++)
+    for(i = 0; i < numChars; i++)
     {
-        if (ch == charSet[i])
-            break;
+        if(ch == charSet[i]) break;
     }
 
-    if (i == numChars)
-        i = 0;
+    if(i == numChars) i = 0;
 
     i += dir;
-
-    if (i < 0)
-        i = numChars - 1;
-    else if (i >= numChars)
-        i = 0;
-
+    if(i < 0) i = numChars - 1;
+    else if(i >= numChars) i = 0;
     return charSet[i];
 }
-
 
 ///////////////////////////////////////////////////////////////////////////
 //
 //	US_LineInput() - Gets a line of user input at (x,y), the string defaults
-//		to whatever is pointed at by def. Input is restricted to maxchars or
-//      the width of the window from the start of input. If the user hits escape,
-//      nothing is copied into buf, and 0 is returned. If the user hits return,
-//      the current string is copied into buf, and the string's length is returned
+//		to whatever is pointed at by def. Input is restricted to maxchars
+//		chars or maxwidth pixels wide. If the user hits escape (and escok is
+//		true), nothing is copied into buf, and false is returned. If the
+//		user hits return, the current string is copied into buf, and true is
+//		returned
 //
 ///////////////////////////////////////////////////////////////////////////
-
-int US_LineInput (int x, int y, char *buf, const char *def, int maxchars)
+boolean
+US_LineInput(int x,int y,char *buf,const char *def,boolean escok,
+				int maxchars,int maxwidth)
 {
-	boolean     cursorvis,cursormoved;
-	boolean     done,checkkey;
-	ScanCode	scan;
+	boolean		redraw,
+				cursorvis,cursormoved,
+				done,result, checkkey;
+	ScanCode	sc;
 	char		*text;
-	char		string[MaxString],oldstring[MaxString];
-	int         cursor,inputlen;
-	int  		i,temp,width;
-	longword	curtime,lasttime,lastdirtime,lastbuttontime,lastdirmovetime;
+	char		s[MaxString],olds[MaxString];
+	int         cursor,len;
+	word		i,
+				w,h,
+				temp;
+	longword	curtime, lasttime, lastdirtime, lastbuttontime, lastdirmovetime;
 	ControlInfo ci;
-	stringtype  s;
 	byte        lastdir = dir_None;
 
 	if (def)
-		cursor = snprintf(string,sizeof(string),"%s",def);
+		snprintf (s,sizeof(s),"%s",def);
 	else
-    {
-		*string = '\0';
-		cursor = 0;
-    }
-
-	*oldstring = '\0';
-	inputlen = -1;
-	cursormoved = true;
+		*s = '\0';
+	*olds = '\0';
+	cursor = (int) strlen(s);
+	cursormoved = redraw = true;
 
 	cursorvis = done = false;
 	lasttime = lastdirtime = lastdirmovetime = GetTimeCount();
@@ -501,127 +510,128 @@ int US_LineInput (int x, int y, char *buf, const char *def, int maxchars)
 
 	while (!done)
 	{
-		ReadAnyControl (&ci);
+		ReadAnyControl(&ci);
 
 		if (cursorvis)
-			USL_XORICursor (x,y,string,cursor);
+			USL_XORICursor(x,y,s,cursor);
 
-		scan = LastScan;
+		sc = LastScan;
 		LastScan = sc_None;
 
 		checkkey = true;
 		curtime = GetTimeCount();
 
-		//
-		// after each direction change, accept the next
-		// change after 250 ms and then everz 125 ms
-		//
-		if (ci.dir != lastdir || (curtime - lastdirtime > TickBase / 4 && curtime - lastdirmovetime > TickBase / 8))
+		// After each direction change accept the next change after 250 ms and then everz 125 ms
+		if(ci.dir != lastdir || (curtime - lastdirtime > TickBase / 4 && curtime - lastdirmovetime > TickBase / 8))
 		{
-			if (ci.dir != lastdir)
+			if(ci.dir != lastdir)
 			{
 				lastdir = ci.dir;
 				lastdirtime = curtime;
 			}
-
             lastdirmovetime = curtime;
 
-			switch (ci.dir)
+			switch(ci.dir)
 			{
 				case dir_West:
-					if (cursor)
+					if(cursor)
 					{
-					    //
-						// remove trailing whitespace if cursor is at end of string
-						//
-						if (string[cursor] == ' ' && string[cursor + 1] == '\0')
-							string[cursor] = '\0';
-
+						// Remove trailing whitespace if cursor is at end of string
+						if(s[cursor] == ' ' && s[cursor + 1] == 0)
+							s[cursor] = 0;
 						cursor--;
 					}
-
 					cursormoved = true;
 					checkkey = false;
 					break;
-
 				case dir_East:
-					if (string[cursor] != '\0')
-                        cursor++;
+					if(cursor >= MaxString - 1) break;
 
+					if(!s[cursor])
+					{
+						VW_MeasurePropString(s,&w,&h);
+						if (len >= maxchars || (maxwidth && w >= maxwidth))
+                            break;
+
+						s[cursor] = ' ';
+						s[cursor + 1] = 0;
+					}
+					cursor++;
 					cursormoved = true;
 					checkkey = false;
 					break;
 
 				case dir_North:
-					if (string[cursor] != '\0')
-                        string[cursor] = USL_RotateChar(string[cursor],1);
-
-					inputlen = -1;
+					if(!s[cursor])
+					{
+						VW_MeasurePropString(s,&w,&h);
+						if (len >= maxchars || (maxwidth && w >= maxwidth))
+                            break;
+						s[cursor + 1] = 0;
+					}
+					s[cursor] = USL_RotateChar(s[cursor], 1);
+					redraw = true;
 					checkkey = false;
 					break;
 
 				case dir_South:
-					if (string[cursor] != '\0')
-                        string[cursor] = USL_RotateChar(string[cursor],-1);
-
-					inputlen = -1;
+					if(!s[cursor])
+					{
+						VW_MeasurePropString(s,&w,&h);
+						if (len >= maxchars || (maxwidth && w >= maxwidth))
+                            break;
+						s[cursor + 1] = 0;
+					}
+					s[cursor] = USL_RotateChar(s[cursor], -1);
+					redraw = true;
 					checkkey = false;
 					break;
 			}
 		}
 
-		if ((int)(curtime - lastbuttontime) > TickBase / 4)   // 250 ms
+		if((int)(curtime - lastbuttontime) > TickBase / 4)   // 250 ms
 		{
-			if (ci.button0)            // acts as return
+			if(ci.button0)             // acts as return
 			{
-				inputlen = snprintf(buf,MaxString,"%s",string);
+				snprintf (buf,maxchars + 1,"%s",s);
 				done = true;
+				result = true;
 				checkkey = false;
 			}
-
-			if (ci.button1)            // acts as escape
+			if(ci.button1 && escok)    // acts as escape
 			{
 				done = true;
+				result = false;
 				checkkey = false;
 			}
-
-			if (ci.button2)            // acts as backspace
+			if(ci.button2)             // acts as backspace
 			{
 				lastbuttontime = curtime;
-
-				if (cursor)
+				if(cursor)
 				{
-				    i = --cursor;
-
-                    while ((string[i] = string[i + 1]) != '\0')
-                        i++;
-
-                    inputlen = -1;
+				    len = strlen(&s[--cursor]) + 1;
+					memmove (&s[cursor],&s[cursor + 1],len);
+					redraw = true;
 				}
-
 				cursormoved = true;
 				checkkey = false;
 			}
 		}
 
-		if (checkkey)
+		if(checkkey)
 		{
-			switch (scan)
+			switch (sc)
 			{
 				case sc_LeftArrow:
 					if (cursor)
 						cursor--;
-
 					cursormoved = true;
 					break;
-
 				case sc_RightArrow:
-					if (string[cursor])
+					if (s[cursor])
 						cursor++;
-
 					cursormoved = true;
 					break;
-
 				case sc_Home:
                     if (cursor > 0)
                     {
@@ -630,103 +640,85 @@ int US_LineInput (int x, int y, char *buf, const char *def, int maxchars)
                         //
                         // delete trailing whitespace
                         //
-                        while (cursor >= 0 && string[cursor] == ' ' && string[cursor + 1] == '\0')
-                            string[cursor--] = '\0';
+                        while (cursor >= 0 && s[cursor] == ' ' && s[cursor + 1] == '\0')
+                            s[cursor--] = '\0';
 
                         cursor = 0;
                     }
-
 					cursormoved = true;
 					break;
-
 				case sc_End:
-					cursor = inputlen;
+					cursor = (int) strlen(s);
 					cursormoved = true;
 					break;
 
 				case sc_Return:
-					inputlen = snprintf(buf,MaxString,"%s",string);
+					snprintf (buf,maxchars + 1,"%s",s);
 					done = true;
+					result = true;
 					break;
-
 				case sc_Escape:
-				    inputlen = 0;
-                    done = true;
+					if (escok)
+					{
+						done = true;
+						result = false;
+					}
 					break;
 
 				case sc_BackSpace:
 					if (cursor)
 					{
-                        i = --cursor;
-
-                        while ((string[i] = string[i + 1]) != '\0')
-                            i++;
-
-                        inputlen = -1;
+                        len = strlen(&s[--cursor]) + 1;
+                        memmove (&s[cursor],&s[cursor + 1],len);
+						redraw = true;
 					}
-
 					cursormoved = true;
 					break;
 
 				case sc_Delete:
-					if (string[cursor])
+					if (s[cursor])
 					{
-                        i = cursor;
-
-                        while ((string[i] = string[i + 1]) != '\0')
-                            i++;
-
-                        inputlen = -1;
+                        len = strlen(&s[cursor]) + 1;
+                        memmove (&s[cursor],&s[cursor + 1],len);
+						redraw = true;
 					}
-
 					cursormoved = true;
 					break;
 			}
 
-			if ((unsigned)maxchars > MaxString - 1)
-                maxchars = MaxString - 1;
-
 			for (text = textinput; *text; text++)
 			{
-				if (isprint(*text) && inputlen < maxchars)
-                {
-                    VW_MeasurePropString (string,&s,'\0');
+				len = (int) strlen(s);
+				VW_MeasurePropString(s,&w,&h);
 
-                    width = fontsegs[fontnumber]->width[*text];
-
-                    if (x + s.width + width < WindowX + WindowW)
-                    {
-                        for (i = inputlen + 1; i > cursor; i--)
-                            string[i] = string[i - 1];
-
-                        string[cursor++] = *text;
-                        inputlen = -1;
-                    }
-                }
+				if(isprint(*text) && (len < MaxString - 1) && ((!maxchars) || (len < maxchars))
+					&& ((!maxwidth) || (w < maxwidth)))
+				{
+					for (i = len + 1;i > cursor;i--)
+						s[i] = s[i - 1];
+					s[cursor++] = *text;
+					redraw = true;
+				}
 			}
 
 			IN_ClearTextInput ();
 		}
 
-		if (inputlen < 0)
+		if (redraw)
 		{
-            //
-            // erase old string and draw new
-            //
+			px = x;
+			py = y;
 			temp = fontcolor;
 			fontcolor = backcolor;
+			VW_DrawPropString(olds);
+			fontcolor = (byte) temp;
+			snprintf (olds,sizeof(olds),"%s",s);
 
 			px = x;
 			py = y;
-			VW_DrawPropString (oldstring);
+			VW_DrawPropString(s);
 
-			fontcolor = temp;
-
-			px = x;
-			py = y;
-			VW_DrawPropString (string);
-
-			inputlen = snprintf(oldstring,sizeof(oldstring),"%s",string);
+			redraw = false;
 		}
 
 		if (cursormoved)
@@ -736,56 +728,32 @@ int US_LineInput (int x, int y, char *buf, const char *def, int maxchars)
 
 			cursormoved = false;
 		}
-
 		if (curtime - lasttime > TickBase / 2)    // 500 ms
 		{
 			lasttime = curtime;
 
 			cursorvis ^= true;
 		}
-		else
-            SDL_Delay (5);
-
+		else SDL_Delay(5);
 		if (cursorvis)
-			USL_XORICursor (x,y,string,cursor);
+			USL_XORICursor(x,y,s,cursor);
 
-		VW_UpdateScreen ();
+		VW_UpdateScreen();
 	}
 
 	if (cursorvis)
-		USL_XORICursor (x,y,string,cursor);
+		USL_XORICursor(x,y,s,cursor);
+	if (!result)
+	{
+		px = x;
+		py = y;
+		VW_DrawPropString(olds);
+	}
+	VW_UpdateScreen();
 
-	IN_ClearKeysDown ();
-
-	return inputlen;
+	IN_ClearKeysDown();
+	return(result);
 }
-
-
-/*
-=====================
-=
-= US_WindowInput
-=
-= Generates a window and prints a string in it,
-= and waits for input at the end of the string
-=
-=====================
-*/
-
-int US_WindowInput (char *buf, const char *def, int maxchars)
-{
-    if (def)
-    {
-        def = US_GenerateWindowFromString(def,maxchars);
-
-        US_Print (def);
-    }
-    else
-        Quit ("US_WindowInput: No input string to generate window!");
-
-    return US_LineInput(px,py,buf,NULL,maxchars);
-}
-
 
 ///////////////////////////////////////////////////////////////////////////
 //

@@ -67,14 +67,16 @@ EndSpear (void)
     WindowW = 320;
     PrintX = 0;
     PrintY = 180;
-    US_Print ("\t"STR_ENDGAME1 "\n\t" STR_ENDGAME2);
+    US_CPrint (STR_ENDGAME1 "\n");
+    US_CPrint (STR_ENDGAME2);
     VW_UpdateScreen ();
     IN_UserInput(700);
 
     PrintX = 0;
     PrintY = 180;
     VW_Bar (0, 180, 320, 20, 0);
-    US_Print ("\t"STR_ENDGAME3 "\n\t" STR_ENDGAME4);
+    US_CPrint (STR_ENDGAME3 "\n");
+    US_CPrint (STR_ENDGAME4);
     VW_UpdateScreen ();
     IN_UserInput(700);
 
@@ -970,7 +972,8 @@ void PreloadGraphics (void)
 ==================
 */
 
-void DrawHighScores (void)
+void
+DrawHighScores (void)
 {
     char buffer[16];
 #ifndef SPEAR
@@ -979,9 +982,8 @@ void DrawHighScores (void)
     char buffer1[5];
 #endif
 #endif
-    int        i;
-    HighScore  *scr;
-    stringtype s;
+    word i, w, h;
+    HighScore *s;
 
 #ifndef SPEAR
     ClearMScreen ();
@@ -1014,7 +1016,7 @@ void DrawHighScores (void)
     SETFONTCOLOR (HIGHLIGHT, 0x29);
 #endif
 
-    for (i = 0, scr = Scores; i < MaxScores; i++, scr++)
+    for (i = 0, s = Scores; i < MaxScores; i++, s++)
     {
         PrintY = 76 + (16 * i);
 
@@ -1026,34 +1028,34 @@ void DrawHighScores (void)
 #else
         PrintX = 16;
 #endif
-        US_Print (scr->name);
+        US_Print (s->name);
 
         //
         // level
         //
-        itoa (scr->completed, buffer, 10);
+        itoa (s->completed, buffer, 10);
 #ifndef SPEAR
         for (str = buffer; *str; str++)
             *str = *str + (129 - '0');  // Used fixed-width numbers (129...)
-
-        VW_MeasurePropString (buffer,&s,'\0');
-
-        PrintX = (22 * 8) - s.width;
+        VW_MeasurePropString (buffer, &w, &h);
+        PrintX = (22 * 8) - w;
 #else
-        VW_MeasurePropString (buffer,&s,'\0');
-
-        PrintX = 194 - s.width;
+        VW_MeasurePropString (buffer, &w, &h);
+        PrintX = 194 - w;
 #endif
 
 #ifndef UPLOAD
 #ifndef SPEAR
         PrintX -= 6;
-        US_Printf ("E%d/L",scr->episode + 1);
+        itoa (s->episode + 1, buffer1, 10);
+        US_Print ("E");
+        US_Print (buffer1);
+        US_Print ("/L");
 #endif
 #endif
 
 #ifdef SPEAR
-        if (scr->completed == 21)
+        if (s->completed == 21)
             VW_DrawPic (PrintX + 8, PrintY - 1, C_WONSPEARPIC);
         else
 #endif
@@ -1062,18 +1064,15 @@ void DrawHighScores (void)
         //
         // score
         //
-        itoa (scr->score, buffer, 10);
+        itoa (s->score, buffer, 10);
 #ifndef SPEAR
         for (str = buffer; *str; str++)
             *str = *str + (129 - '0');  // Used fixed-width numbers (129...)
-
-        VW_MeasurePropString (buffer,&s,'\0');
-
-        PrintX = (34 * 8) - 8 - s.width;
+        VW_MeasurePropString (buffer, &w, &h);
+        PrintX = (34 * 8) - 8 - w;
 #else
-        VW_MeasurePropString (buffer,&s,'\0');
-
-        PrintX = 292 - s.width;
+        VW_MeasurePropString (buffer, &w, &h);
+        PrintX = 292 - w;
 #endif
         US_Print (buffer);
 
@@ -1085,10 +1084,10 @@ void DrawHighScores (void)
         //
         if (!i)
         {
-            char temp = (((scr->score >> 28) & 0xf) ^ ((scr->score >> 24) & 0xf)) + 'A';
-            char temp1 = (((scr->score >> 20) & 0xf) ^ ((scr->score >> 16) & 0xf)) + 'A';
-            char temp2 = (((scr->score >> 12) & 0xf) ^ ((scr->score >> 8) & 0xf)) + 'A';
-            char temp3 = (((scr->score >> 4) & 0xf) ^ ((scr->score >> 0) & 0xf)) + 'A';
+            char temp = (((s->score >> 28) & 0xf) ^ ((s->score >> 24) & 0xf)) + 'A';
+            char temp1 = (((s->score >> 20) & 0xf) ^ ((s->score >> 16) & 0xf)) + 'A';
+            char temp2 = (((s->score >> 12) & 0xf) ^ ((s->score >> 8) & 0xf)) + 'A';
+            char temp3 = (((s->score >> 4) & 0xf) ^ ((s->score >> 0) & 0xf)) + 'A';
 
             SETFONTCOLOR (0x49, 0x29);
             PrintX = 35 * 8;
@@ -1123,13 +1122,12 @@ void DrawHighScores (void)
 =======================
 */
 
-void CheckHighScore (int32_t score, word other)
+void
+CheckHighScore (int32_t score, word other)
 {
     word i, j;
-    int w,x,y;
     int n;
     HighScore myscore;
-    WindowRec wr;
 
     myscore.name[0] = '\0';
     myscore.score = score;
@@ -1160,42 +1158,31 @@ void CheckHighScore (int32_t score, word other)
 
     if (n != -1)
     {
-        US_SaveWindow (&wr);
-
         //
         // got a high score
         //
         PrintY = 76 + (16 * n);
 #ifndef SPEAR
-        PrintX = 32;
-        fontnumber = 0;
-        SETFONTCOLOR (WHITE,BORDCOLOR);
-
-        WindowX = PrintX - 2;
-        WindowY = PrintY - 2;
-        WindowW = 132;
-        WindowH = fontsegs[fontnumber]->height + 2;
+        PrintX = 4 * 8;
+        backcolor = BORDCOLOR;
+        fontcolor = 15;
+        US_LineInput (PrintX, PrintY, Scores[n].name, 0, true, MaxHighName, 100);
 #else
         PrintX = 16;
         fontnumber = 1;
-        SETFONTCOLOR (WHITE,0x9c);
-
-        WindowX = PrintX - 2;
-        WindowY = PrintY - 2;
-        WindowW = 145;
-        WindowH = fontsegs[fontnumber]->height + 2;
-
-        VW_Bar (WindowX,WindowY,WindowW,WindowH,backcolor);
+        VW_Bar (PrintX - 2, PrintY - 2, 145, 15, 0x9c);
+        VW_UpdateScreen ();
+        backcolor = 0x9c;
+        fontcolor = 15;
+        US_LineInput (PrintX, PrintY, Scores[n].name, 0, true, MaxHighName, 130);
 #endif
-        US_LineInput (PrintX,PrintY,Scores[n].name,NULL,sizeof(Scores[n].name) - 1);
-
-        US_RestoreWindow (&wr);
     }
     else
     {
         IN_ClearKeysDown ();
         IN_UserInput (500);
     }
+
 }
 
 
@@ -1295,19 +1282,19 @@ char BackDoorStrs[5][16] = {
 };
 
 char GoodBoyStrs[10][40] = {
-    "\t...is the CORRECT ANSWER!",
+    "...is the CORRECT ANSWER!",
     "",
 
-    "\tConsider yourself bitten, sir.",
+    "Consider yourself bitten, sir.",
     "",
 
-    "\tGreetings Professor Falken, would you\n",
-    "\tlike to play Spear of Destiny?",
+    "Greetings Professor Falken, would you",
+    "like to play Spear of Destiny?",
 
-    "\tDo you have any gold spray paint?",
+    "Do you have any gold spray paint?",
     "",
 
-    "\tI wish I had a 21\" monitor...",
+    "I wish I had a 21\" monitor...",
     ""
 };
 
@@ -1366,10 +1353,10 @@ char DosMessages[9][80] = {
 };
 
 char MiscTitle[4][20] = {
-    "\tBLOOD TEST",
-    "\tSTRAIGHT-LACED",
-    "\tQUITE SHAPELY",
-    "\tI AM WHAT I AMMO"
+    "BLOOD TEST",
+    "STRAIGHT-LACED",
+    "QUITE SHAPELY",
+    "I AM WHAT I AMMO"
 };
 
 char MiscStr[12][40] = {
@@ -1402,11 +1389,12 @@ BackDoor (char *s)
     {
         if (!strcasecmp (s, BackDoorStrs[i]))
         {
-            SETFONTCOLOR (14,WHITE);
+            SETFONTCOLOR (14, 15);
             fontnumber = 0;
             PrintY = 175;
             VW_DrawPic (0, 20 * 8, COPYPROTBOXPIC);
-            US_Printf ("%s%s",GoodBoyStrs[i * 2],GoodBoyStrs[i * 2 + 1]);
+            US_CPrint (GoodBoyStrs[i * 2]);
+            US_CPrint (GoodBoyStrs[i * 2 + 1]);
             VW_UpdateScreen ();
             return 1;
         }
@@ -1445,6 +1433,8 @@ CopyProtection (void)
         totaltypes
     };
 
+
+
     attempt = 0;
     VW_FadeOut ();
     StartCPMusic (COPYPRO_MUS);
@@ -1453,7 +1443,7 @@ CopyProtection (void)
     while (attempt < 3)
     {
         fontnumber = 1;
-        SETFONTCOLOR (PRINTCOLOR - 2, WHITE);
+        SETFONTCOLOR (PRINTCOLOR - 2, 15);
         VW_DrawPic (0, 0, C_BACKDROPPIC);
         VW_DrawPic (0, 0, COPYPROTTOPPIC);
         VW_DrawPic (0, 20 * 8, COPYPROTBOXPIC);
@@ -1472,7 +1462,7 @@ CopyProtection (void)
             {
                 PrintX = 0;
                 US_Print (STR_DEBRIEF);
-                SETFONTCOLOR (PRINTCOLOR,WHITE);
+                SETFONTCOLOR (PRINTCOLOR, 15);
 
                 while (enemypicked[whichboss = US_RndT () & 3]);
                 enemypicked[whichboss] = 1;
@@ -1480,17 +1470,19 @@ CopyProtection (void)
                 VW_DrawPic (128, 60, bossnum);
                 fontnumber = 0;
                 PrintY = 130;
-                US_Print (STR_ENEMY1 "\n\n");
+                US_CPrint (STR_ENEMY1 "\n");
+                US_CPrint (STR_ENEMY2 "\n\n");
 
                 VW_UpdateScreen ();
                 VW_FadeIn ();
 
                 PrintX = 100;
-                SETFONTCOLOR (WHITE,TYPEBOX_BKGD);
+                fontcolor = 15;
+                backcolor = TYPEBOX_BKGD;
                 inputbuffer[0] = 0;
                 PrintY = TYPEBOX_Y;
                 fontnumber = 1;
-                US_LineInput (PrintX,PrintY,inputbuffer,NULL,sizeof(inputbuffer) - 1);
+                US_LineInput (PrintX, PrintY, inputbuffer, 0, true, 20, 100);
 
                 match = 0;
                 size_t inputlen = strlen(inputbuffer);
@@ -1518,18 +1510,22 @@ CopyProtection (void)
             {
                 while (wordpicked[whichword = US_RndT () % 5]);
                 wordpicked[whichword] = 1;
-                US_Print (STR_CHECKMAN);
-                SETFONTCOLOR (PRINTCOLOR,WHITE);
+                US_CPrint (STR_CHECKMAN);
+                SETFONTCOLOR (PRINTCOLOR, 15);
                 PrintY += 25;
-                US_Printf (STR_MAN1,WordStr[whichword]);
+                US_CPrint (STR_MAN1);
+                US_CPrint (STR_MAN2);
+                snprintf(message,sizeof(message), STR_MAN3 " \"%s\" " STR_MAN4, WordStr[whichword]);
+                US_CPrint (message);
                 VW_UpdateScreen ();
                 VW_FadeIn ();
 
                 PrintX = 146;
-                SETFONTCOLOR (WHITE,TYPEBOX_BKGD);
+                fontcolor = 15;
+                backcolor = TYPEBOX_BKGD;
                 inputbuffer[0] = 0;
                 PrintY = TYPEBOX_Y;
-                US_LineInput (PrintX,PrintY,inputbuffer,NULL,6);
+                US_LineInput (PrintX, PrintY, inputbuffer, 0, true, 6, 100);
 
                 match = 1 - (strcasecmp (inputbuffer, WordCorrect[whichword]) != 0);
                 match += BackDoor (inputbuffer);
@@ -1543,18 +1539,20 @@ CopyProtection (void)
             {
                 while (memberpicked[whichmem = US_RndT () % 5]);
                 memberpicked[whichmem] = 1;
-                US_Print (STR_ID1);
-                SETFONTCOLOR (PRINTCOLOR,WHITE);
+                US_CPrint (STR_ID1);
+                SETFONTCOLOR (PRINTCOLOR, 15);
                 PrintY += 25;
-                US_Printf ("%s%s",MemberStr[whichmem * 2],MemberStr[whichmem * 2 + 1]);
+                US_CPrint (MemberStr[whichmem * 2]);
+                US_CPrint (MemberStr[whichmem * 2 + 1]);
                 VW_UpdateScreen ();
                 VW_FadeIn ();
 
                 PrintX = 100;
-                SETFONTCOLOR (WHITE,TYPEBOX_BKGD);
+                fontcolor = 15;
+                backcolor = TYPEBOX_BKGD;
                 inputbuffer[0] = 0;
                 PrintY = TYPEBOX_Y;
-                US_LineInput (PrintX,PrintY,inputbuffer,NULL,sizeof(inputbuffer) - 1);
+                US_LineInput (PrintX, PrintY, inputbuffer, 0, true, 20, 120);
 
                 match = 0;
                 size_t inputlen = strlen(inputbuffer);
@@ -1582,23 +1580,21 @@ CopyProtection (void)
             {
                 while (whichpicked[whichone = US_RndT () & 3]);
                 whichpicked[whichone] = 1;
-                US_Printf ("%s",MiscTitle[whichone]);
-                SETFONTCOLOR (PRINTCOLOR,WHITE);
+                US_CPrint (MiscTitle[whichone]);
+                SETFONTCOLOR (PRINTCOLOR, 15);
                 PrintY += 25;
-                US_Printf (
-                    "%s%s%s",
-                    MiscStr[whichone * 3],
-                    MiscStr[whichone * 3 + 1],
-                    MiscStr[whichone * 3 + 2]);
-
+                US_CPrint (MiscStr[whichone * 3]);
+                US_CPrint (MiscStr[whichone * 3 + 1]);
+                US_CPrint (MiscStr[whichone * 3 + 2]);
                 VW_UpdateScreen ();
                 VW_FadeIn ();
 
                 PrintX = 146;
-                SETFONTCOLOR (WHITE,TYPEBOX_BKGD);
+                fontcolor = 15;
+                backcolor = TYPEBOX_BKGD;
                 inputbuffer[0] = 0;
                 PrintY = TYPEBOX_Y;
-                US_LineInput (PrintX,PrintY,inputbuffer,NULL,6);
+                US_LineInput (PrintX, PrintY, inputbuffer, 0, true, 6, 100);
 
                 match = 1 - (strcasecmp (inputbuffer, MiscCorrect[whichone]) != 0);
                 match += BackDoor (inputbuffer);
@@ -1613,13 +1609,12 @@ CopyProtection (void)
         if (!match)
         {
             whichline = 2 * (US_RndT () % 9);
-            SETFONTCOLOR (14,WHITE);
+            SETFONTCOLOR (14, 15);
             fontnumber = 0;
             PrintY = 175;
             VW_DrawPic (0, 20 * 8, COPYPROTBOXPIC);
-            US_Printf ("%s%s",
-                CopyProFailedStrs[whichline],
-                CopyProFailedStrs[whichline + 1]);
+            US_CPrint (CopyProFailedStrs[whichline]);
+            US_CPrint (CopyProFailedStrs[whichline + 1]);
 
             VW_UpdateScreen ();
             SD_PlaySound (NOWAYSND);
@@ -1629,8 +1624,21 @@ CopyProtection (void)
         }
         else
         {
+            int start;
+
             SD_PlaySound (BONUS1UPSND);
             SD_WaitSoundDone ();
+
+            switch (SoundMode)
+            {
+                case sdm_Off:
+                    return;
+                case sdm_PC:
+                    start = STARTPCSOUNDS;
+                    break;
+                case sdm_AdLib:
+                    start = STARTADLIBSOUNDS;
+            }
 
             return;
         }
@@ -1639,8 +1647,7 @@ CopyProtection (void)
     ClearMemory ();
     ShutdownId ();
 
-    snprintf (message,sizeof(message),"%s\n",DosMessages[US_RndT() % 9]);
-    Error (message);
+    printf ("%s\n", DosMessages[US_RndT () % 9]);
     exit (1);
 }
 

@@ -355,8 +355,8 @@ void HandleWord (void)
 {
     char    wword[WORDLIMIT];
     int     wordindex;
-    word    newpos;
-    stringtype s;
+    word    wwidth,wheight,newpos;
+
 
     //
     // copy the next word into [word]
@@ -374,9 +374,9 @@ void HandleWord (void)
     //
     // see if it fits on this line
     //
-    VW_MeasurePropString (wword,&s,'\0');
+    VW_MeasurePropString (wword,&wwidth,&wheight);
 
-    while (px + s.width > (int) rightmargin[rowon])
+    while (px+wwidth > (int) rightmargin[rowon])
     {
         NewLine ();
         if (layoutdone)
@@ -386,7 +386,7 @@ void HandleWord (void)
     //
     // print it
     //
-    newpos = px + s.width;
+    newpos = px+wwidth;
     VW_DrawPropString (wword);
     px = newpos;
 
