@@ -467,7 +467,7 @@ void HitVertWall (void)
         //
         // check for adjacent doors
         //
-        if (tilemap[mapylookup[yinttile] + (xtile - xtilestep)] & BIT_DOOR)
+        if (tilemap[xtile - xtilestep][yinttile] & BIT_DOOR)
             wallpic = DOORWALL+3;
         else
             wallpic = vertwall[tilehit & ~BIT_WALL];
@@ -514,7 +514,7 @@ void HitHorizWall (void)
         //
         // check for adjacent doors
         //
-        if (tilemap[mapylookup[ytile - ytilestep] + xinttile] & BIT_DOOR)
+        if (tilemap[xinttile][ytile - ytilestep] & BIT_DOOR)
             wallpic = DOORWALL + 2;
         else
             wallpic = horizwall[tilehit & ~BIT_WALL];
@@ -744,7 +744,7 @@ void DrawScaleds (void)
         if ((visptr->shapenum = statptr->shapenum) == -1)
             continue;                                               // object has been deleted
 
-        if (!spotvis[mapylookup[statptr->tiley] + statptr->tilex])
+        if (!spotvis[statptr->tilex][statptr->tiley])
             continue;                                               // not visable
 
         if (TransformTile (statptr->tilex,statptr->tiley,
@@ -775,7 +775,7 @@ void DrawScaleds (void)
         if ((visptr->shapenum = obj->state->shapenum)==0)
             continue;                                               // no shape
 
-        visspot = (byte *)&spotvis[mapylookup[obj->tiley] + obj->tilex];
+        visspot = (byte *)&spotvis[obj->tilex][obj->tiley];
 
         //
         // could be in any of the nine surrounding tiles
@@ -951,7 +951,6 @@ void WallRefresh (void)
     fixed     xinttemp,yinttemp;                            // holds temporary intercept position
     longword  xpartial,ypartial;
     doorobj_t *door;
-    unsigned  offset;
     int       pwallposnorm,pwallposinv,pwallposi;           // holds modified pwallpos
 
     for (pixx = 0; pixx < viewwidth; pixx++)
@@ -1022,7 +1021,7 @@ void WallRefresh (void)
         //
         // special treatment when player is in back tile of pushwall
         //
-        if (tilemap[mapylookup[focalty] + focaltx] == BIT_WALL)
+        if (tilemap[focaltx][focalty] == BIT_WALL)
         {
             if ((pwalldir == di_east && xtilestep == 1) || (pwalldir == di_west && xtilestep == -1))
             {
@@ -1084,11 +1083,10 @@ void WallRefresh (void)
             if ((ytilestep == -1 && yinttile <= ytile) || (ytilestep == 1 && yinttile >= ytile))
                 goto horizentry;
 vertentry:
-            offset = mapylookup[yinttile] + xtile;
 #ifdef REVEALMAP
-            mapseen[offset] = true;
+            mapseen[xtile][yinttile] = true;
 #endif
-            tilehit = tilemap[offset];
+            tilehit = tilemap[xtile][yinttile];
 
             if (tilehit)
             {
@@ -1260,7 +1258,7 @@ passvert:
             //
             // mark the tile as visible and setup for next step
             //
-            spotvis[offset] = true;
+            spotvis[xtile][yinttile] = true;
             xtile += xtilestep;
             yintercept += ystep;
             yinttile = yintercept >> TILESHIFT;
@@ -1280,11 +1278,10 @@ passvert:
                 goto vertentry;
 
 horizentry:
-            offset = mapylookup[ytile] + xinttile;
 #ifdef REVEALMAP
-            mapseen[offset] = true;
+            mapseen[xinttile][ytile] = true;
 #endif
-            tilehit = tilemap[offset];
+            tilehit = tilemap[xinttile][ytile];
 
             if (tilehit)
             {
@@ -1458,7 +1455,7 @@ passhoriz:
             //
             // mark the tile as visible and setup for next step
             //
-            spotvis[offset] = true;
+            spotvis[xinttile][ytile] = true;
             ytile += ytilestep;
             xintercept += xstep;
             xinttile = xintercept >> TILESHIFT;
@@ -1507,21 +1504,17 @@ void Setup3DView (void)
 
 void ThreeDRefresh (void)
 {
-    unsigned offset;
-
 //
 // clear out the traced array
 //
-    offset = mapylookup[focalty] + focaltx;
-
-    memset(spotvis,0,maparea);
+    memset (spotvis,0,sizeof(spotvis));
 #ifdef PLAYDEMOLIKEORIGINAL      // ADDEDFIX 30 - Chris
     if (DEMOCOND_SDL)
 #endif
-    if (!tilemap[offset] || (tilemap[offset] & BIT_DOOR))
-        spotvis[offset] = true;       // Detect all sprites over player fix
+    if (!tilemap[focaltx][focalty] || (tilemap[focaltx][focalty] & BIT_DOOR))
+        spotvis[focaltx][focalty] = true;       // Detect all sprites over player fix
 #ifdef REVEALMAP
-    mapseen[offset] = true;
+    mapseen[focaltx][focalty] = true;
 #endif
     if (screen.bufferofs)
         Quit ("Screen buffer offset must be 0 while 3D rendering!");

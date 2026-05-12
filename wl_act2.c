@@ -279,7 +279,7 @@ boolean ProjectileTryMove (objtype *ob)
     for (y=yl;y<=yh;y++)
         for (x=xl;x<=xh;x++)
         {
-            check = actorat[mapylookup[y] + x];
+            check = actorat[x][y];
             if (check && !ISPOINTER(check))
                 return false;
         }
@@ -1033,7 +1033,7 @@ void SpawnPatrol (int which, int tilex, int tiley, int dir)
     newobj->flags |= FL_SHOOTABLE;
     newobj->active = ac_yes;
 
-    actorat[mapylookup[tiley] + tilex] = NULL;           // don't use original spot
+    actorat[tilex][tiley] = NULL;           // don't use original spot
 
     switch (dir)
     {
@@ -1051,7 +1051,7 @@ void SpawnPatrol (int which, int tilex, int tiley, int dir)
             break;
     }
 
-    actorat[mapylookup[newobj->tiley] + newobj->tilex] = newobj;
+    actorat[newobj->tilex][newobj->tiley] = newobj;
 }
 
 
@@ -1963,7 +1963,7 @@ void A_Dormant (objtype *ob)
     for (y=yl ; y<=yh ; y++)
         for (x=xl ; x<=xh ; x++)
         {
-            tile = (uintptr_t)actorat[mapylookup[y] + x];
+            tile = (uintptr_t)actorat[x][y];
             if (!tile)
                 continue;
             if (!ISPOINTER(tile))
@@ -3783,7 +3783,7 @@ boolean CheckPosition (objtype *ob)
     {
         for (x=xl;x<=xh;x++)
         {
-            check = actorat[mapylookup[y] + x];
+            check = actorat[x][y];
             if (check && !ISPOINTER(check))
                 return false;
         }

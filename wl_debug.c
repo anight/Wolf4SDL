@@ -143,17 +143,11 @@ void BasicOverhead (void)
     int       zoom,temp;
     int       offx,offy;
     uintptr_t tile;
-    unsigned  offset;
     int       color;
 
-    //
-    // KS: this may not always be correct as it
-    // assumes the maps are square and might look
-    // bad for maps larger than 128x128
-    //
-    zoom = 128 / mapwidth;
+    zoom = 128 / MAPSIZE;
     offx = 160;
-    offy = (160 - (mapwidth * zoom)) / 2;
+    offy = (160 - (MAPSIZE * zoom)) / 2;
 
 #ifdef MAPBORDER
     temp = viewsize;
@@ -168,7 +162,7 @@ void BasicOverhead (void)
     {
         for (x = 0; x < mapwidth; x++)
         {
-            tile = (uintptr_t)actorat[mapylookup[y] + x];
+            tile = (uintptr_t)actorat[x][y];
 
             VW_Bar ((x * zoom) + offx,(y * zoom) + offy,zoom,zoom,tile);
         }
@@ -183,20 +177,18 @@ void BasicOverhead (void)
     {
         for (x = 0; x < mapwidth; x++)
         {
-            offset = mapylookup[y] + x;
-
-            tile = (uintptr_t)actorat[offset];
+            tile = (uintptr_t)actorat[x][y];
 
             if (ISPOINTER(tile) && ((objtype *)tile)->flags & FL_SHOOTABLE)
                 color = 72;
             else if (!tile || ISPOINTER(tile))
             {
-                if (spotvis[offset])
+                if (spotvis[x][y])
                     color = 111;
                 else
                     color = 0;      // nothing
             }
-            else if (mapsegs[1][offset] == PUSHABLETILE)
+            else if (MAPSPOT(x,y,1) == PUSHABLETILE)
                 color = 171;
             else if (tile == BIT_WALL)
                 color = 158;
@@ -448,7 +440,6 @@ int DebugKeys (void)
 {
     int level;
     objtype *spot;
-    unsigned offset;
     const char *isOn[] = {"OFF","ON"};
 
     if (Keyboard[sc_B])             // B = border color
@@ -495,9 +486,7 @@ int DebugKeys (void)
 
     if (Keyboard[sc_F])             // F = facing spot
     {
-        offset = mapylookup[player->tiley] + player->tilex;
-
-        spot = actorat[offset];
+        spot = actorat[player->tilex][player->tiley];
 
         US_PrintfWindow (
             "X: %d (%d)\n"
@@ -517,11 +506,11 @@ int DebugKeys (void)
             player->angle,
             player->tilex,
             player->tiley,
-            tilemap[offset],
+            tilemap[player->tilex][player->tiley],
             spot,
             player->areanumber,
-            mapsegs[1][offset],
-            !ISPOINTER(spot) ? spotvis[offset] : spot->flags);
+            MAPSPOT(player->tilex,player->tiley,1),
+            !ISPOINTER(spot) ? spotvis[player->tilex][player->tiley] : spot->flags);
 
         VW_UpdateScreen();
         IN_Ack();
@@ -917,7 +906,6 @@ void OverheadRefresh (void)
     int16_t   endx,endy;
     int16_t   sx,sy,shapenum;
     uintptr_t tile;
-    unsigned  offset;
     statobj_t *statptr;
     objtype   *obj;
 
@@ -935,15 +923,14 @@ void OverheadRefresh (void)
         {
             sx = (x - maporgx) * tilesize;
             sy = (y - maporgy) * tilesize;
-            offset = mapylookup[y] + x;
 #ifdef REVEALMAP
-            if (!mapseen[offset] && !mapreveal)
+            if (!mapseen[x][y] && !mapreveal)
             {
                 DrawMapFloor (sx,sy,BLACK);
                 continue;
             }
 #endif
-            tile = (uintptr_t)actorat[offset];
+            tile = (uintptr_t)actorat[x][y];
 
             if (tile)
             {
@@ -952,7 +939,7 @@ void OverheadRefresh (void)
                 //
                 if (tile < BIT_DOOR && tile != BIT_WALL)
                 {
-                    if (DebugOk && Keyboard[sc_P] && mapsegs[1][offset] == PUSHABLETILE)
+                    if (DebugOk && Keyboard[sc_P] && MAPSPOT(x,y,1) == PUSHABLETILE)
                         DrawMapFloor (sx,sy,COL_SECRET);
                     else
                         DrawMapWall (sx,sy,horizwall[tile]);
@@ -970,7 +957,7 @@ void OverheadRefresh (void)
                     {
                         obj = (objtype *)tile;
 
-                        if (spotvis[mapylookup[obj->y >> TILESHIFT] + (obj->x >> TILESHIFT)])
+                        if (spotvis[obj->x >> TILESHIFT][obj->y >> TILESHIFT])
                         {
                             shapenum = obj->state->shapenum;
 
@@ -1036,7 +1023,7 @@ void SetupMapView (void)
 #elif TEXTURESHIFT == 7
     tilesize >>= 1;
 #endif
-    tilemapratio = mapwidth / tilesize;
+    tilemapratio = MAPSIZE / tilesize;
     tilewallratio = TEXTURESIZE / tilesize;
 
     viewtilex = screen.width / tilesize;

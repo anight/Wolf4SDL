@@ -33,11 +33,11 @@ objtype *player,*lastobj,*objfreelist;
 boolean singlestep,godmode,noclip,ammocheat,mapreveal;
 int     extravbls;
 
-tiletype *tilemap;          // wall values only
-bool     *spotvis;
-objtype  **actorat;
+tiletype tilemap[MAPSIZE][MAPSIZE];          // wall values only
+bool     spotvis[MAPSIZE][MAPSIZE];
+objtype  *actorat[MAPSIZE][MAPSIZE];
 #ifdef REVEALMAP
-bool     *mapseen;
+bool     mapseen[MAPSIZE][MAPSIZE];
 #endif
 
 //
@@ -1176,7 +1176,7 @@ void DoActor (objtype * ob)
         return;
 
     if (!(ob->flags & (FL_NONMARK | FL_NEVERMARK)))
-        actorat[mapylookup[ob->tiley] + ob->tilex] = NULL;
+        actorat[ob->tilex][ob->tiley] = NULL;
 
     if (ob->ticcount)
     {
@@ -1229,10 +1229,10 @@ void DoActor (objtype * ob)
     if (ob->flags & FL_NEVERMARK)
         return;
 
-    if ((ob->flags & FL_NONMARK) && actorat[mapylookup[ob->tiley] + ob->tilex])
+    if ((ob->flags & FL_NONMARK) && actorat[ob->tilex][ob->tiley])
         return;
 
-    actorat[mapylookup[ob->tiley] + ob->tilex] = ob;
+    actorat[ob->tilex][ob->tiley] = ob;
 }
 
 //==========================================================================

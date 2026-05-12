@@ -4,6 +4,8 @@
 //===========================================================================
 
 #define NUMMAPS         60
+#define MAPSIZE         64
+#define MAPAREA         (MAPSIZE * MAPSIZE)
 #define MAPPLANES       3
 #define MAPNAMESIZE     16
 
@@ -35,12 +37,11 @@ typedef struct
 
 //===========================================================================
 
-extern  unsigned *mapylookup;
 extern  word     *mapsegs[MAPPLANES];
 extern  byte     *audiosegs[NUMSNDCHUNKS];
 extern  byte     *grsegs[NUMCHUNKS];
 
-extern  unsigned mapwidth,mapheight,maparea;
+extern  unsigned mapwidth,mapheight;
 
 extern  char  mapname[MAPNAMESIZE + 1];
 extern  char  extension[5];
@@ -60,7 +61,7 @@ void CA_Startup (void);
 void CA_Shutdown (void);
 
 void CA_CacheGrChunks (int32_t *offset, huffnode *hufftable, FILE *file);
-boolean CA_CacheMap (int mapnum);
+void CA_CacheMap (int mapnum);
 
 void CA_CannotOpen (const char *name);
 

@@ -809,7 +809,6 @@ boolean TryMove (objtype *ob)
     int         xl,yl,xh,yh,x,y;
     objtype    *check;
     int32_t     deltax,deltay;
-    unsigned   offset;
 
     xl = (ob->x-PLAYERSIZE) >>TILESHIFT;
     yl = (ob->y-PLAYERSIZE) >>TILESHIFT;
@@ -826,13 +825,11 @@ boolean TryMove (objtype *ob)
     {
         for (x=xl;x<=xh;x++)
         {
-            offset = mapylookup[y] + x;
-
-            check = actorat[offset];
+            check = actorat[x][y];
 
             if (check && !ISPOINTER(check))
             {
-                if (tilemap[offset]==BIT_WALL && x==pwallx && y==pwally)   // back of moving pushwall?
+                if (tilemap[x][y]==BIT_WALL && x==pwallx && y==pwally)   // back of moving pushwall?
                 {
                     switch(pwalldir)
                     {
@@ -875,9 +872,7 @@ boolean TryMove (objtype *ob)
     {
         for (x=xl;x<=xh;x++)
         {
-            offset = mapylookup[y] + x;
-
-            check = actorat[offset];
+            check = actorat[x][y];
 
             if (ISPOINTER(check) && check != player && (check->flags & FL_SHOOTABLE) )
             {
@@ -1071,7 +1066,6 @@ void Cmd_Use (void)
 {
     int     checkx,checky,doornum,dir;
     boolean elevatorok;
-    unsigned offset;
 
     //
     // find which cardinal direction the player is facing
@@ -1105,11 +1099,9 @@ void Cmd_Use (void)
         elevatorok = false;
     }
 
-    offset = mapylookup[checky] + checkx;
+    doornum = tilemap[checkx][checky];
 
-    doornum = tilemap[offset];
-
-    if (mapsegs[1][offset] == PUSHABLETILE)
+    if (MAPSPOT(checkx,checky,1) == PUSHABLETILE)
     {
         //
         // pushable wall
@@ -1125,7 +1117,7 @@ void Cmd_Use (void)
         //
         buttonheld[bt_use] = true;
 
-        tilemap[offset]++;              // flip switch
+        tilemap[checkx][checky]++;              // flip switch
         if (MAPSPOT(player->tilex,player->tiley,0) == ALTELEVATORTILE)
             playstate = ex_secretlevel;
         else

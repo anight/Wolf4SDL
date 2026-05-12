@@ -38,12 +38,11 @@ Id Software Caching Manager
 =============================================================================
 */
 
-unsigned *mapylookup;
 word     *mapsegs[MAPPLANES];
 byte     *audiosegs[NUMSNDCHUNKS];
 byte     *grsegs[NUMCHUNKS];
 
-unsigned mapwidth,mapheight,maparea;
+unsigned mapwidth,mapheight;
 
 char mapname[MAPNAMESIZE + 1];
 char extension[5]; // Need a string, not constant to change cache files
@@ -500,6 +499,26 @@ void CAL_SetupGrFile (void)
 /*
 ======================
 =
+= CAL_SetupMapFile
+=
+======================
+*/
+
+void CAL_SetupMapFile (void)
+{
+    int i;
+
+//
+// allocate space for all planes
+//
+    for (i = 0; i < MAPPLANES; i++)
+        mapsegs[i] = SafeMalloc(MAPAREA * sizeof(*mapsegs[i]));
+}
+
+
+/*
+======================
+=
 = CAL_SetupAudioFile
 =
 ======================
@@ -612,6 +631,7 @@ void CAL_SetupAudioFile (void)
 
 void CA_Startup (void)
 {
+    CAL_SetupMapFile ();
     CAL_SetupGrFile ();
     CAL_SetupAudioFile ();
 }
@@ -767,12 +787,10 @@ void CA_CacheGrChunks (int32_t *offset, huffnode *hufftable, FILE *grfile)
 =
 = CA_CacheMap
 =
-= Returns true if it's a new map size
-=
 ======================
 */
 
-boolean CA_CacheMap (int mapnum)
+void CA_CacheMap (int mapnum)
 {
     maptype     mapheader;
     mapfiletype fileheader;
@@ -780,8 +798,6 @@ boolean CA_CacheMap (int mapnum)
     char        fname[13];
     int32_t     pos,compressed,expanded;
     int         i;
-    unsigned    lastmapwidth,lastmapheight;
-    boolean     newmapsize;
     word        *source = NULL;
     word        *rlewtable = NULL;
 
@@ -817,21 +833,11 @@ boolean CA_CacheMap (int mapnum)
     fseek (file,pos,SEEK_SET);
     fread (&mapheader,sizeof(mapheader),1,file);
 
-    lastmapwidth = mapwidth;
-    lastmapheight = mapheight;
     mapwidth = mapheader.width;
     mapheight = mapheader.height;
-    maparea = mapwidth * mapheight;
 
-    newmapsize = mapwidth != lastmapwidth || mapheight != lastmapheight;
-
-    if (newmapsize)
-    {
-        mapylookup = SafeRealloc(mapylookup,maparea * sizeof(*mapylookup));
-
-        for (i = 0; i < mapheight; i++)
-            mapylookup[i] = i * mapwidth;
-    }
+    if (mapwidth != MAPSIZE || mapheight != MAPSIZE)
+        Quit ("CA_CacheMap: Map %d not %u*%u!",mapnum,MAPSIZE,MAPSIZE);
 
 //
 // map names are NOT null-terminated, so copy the exact
@@ -842,13 +848,10 @@ boolean CA_CacheMap (int mapnum)
     mapname[MAPNAMESIZE] = '\0';
 
 //
-// load the planes into the buffers
+// load the planes into the already allocated buffers
 //
     for (i = 0; i < MAPPLANES; i++)
     {
-        if (newmapsize)
-            mapsegs[i] = SafeRealloc(mapsegs[i],maparea * sizeof(*mapsegs[i]));
-
         pos = mapheader.planestart[i];
         compressed = mapheader.planelength[i];
 
@@ -857,7 +860,7 @@ boolean CA_CacheMap (int mapnum)
             //
             // empty plane
             //
-            memset (mapsegs[i],0,maparea * sizeof(*mapsegs[i]));
+            memset (mapsegs[i],0,MAPAREA * sizeof(*mapsegs[i]));
             continue;
         }
 
@@ -889,6 +892,4 @@ boolean CA_CacheMap (int mapnum)
     SafeFree (rlewtable);
 
     fclose (file);
-
-    return newmapsize;
 }

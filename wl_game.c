@@ -624,7 +624,6 @@ void SetupGameLevel (void)
     int  mapnum;
     word *map;
     word tile;
-    unsigned offset;
 
     if (!loadedgame)
     {
@@ -652,15 +651,7 @@ void SetupGameLevel (void)
 //
     mapnum = gamestate.mapon+10*gamestate.episode;
 
-    if (CA_CacheMap(mapnum))
-    {
-        tilemap = SafeRealloc(tilemap,maparea * sizeof(*tilemap));
-        actorat = SafeRealloc(actorat,maparea * sizeof(**actorat));
-        spotvis = SafeRealloc(spotvis,maparea * sizeof(*spotvis));
-#ifdef REVEALMAP
-        mapseen = SafeRealloc(mapseen,maparea * sizeof(*mapseen));
-#endif
-    }
+    CA_CacheMap (mapnum);
 
 #ifdef USE_FEATUREFLAGS
     //
@@ -687,10 +678,10 @@ void SetupGameLevel (void)
 //
 // copy the wall data to a data segment array
 //
-    memset (tilemap,0,maparea * sizeof(*tilemap));
-    memset (actorat,0,maparea * sizeof(**actorat));
+    memset (tilemap,0,sizeof(tilemap));
+    memset (actorat,0,sizeof(actorat));
 #ifdef REVEALMAP
-    memset (mapseen,0,maparea * sizeof(*mapseen));
+    memset (mapseen,0,sizeof(mapseen));
 #endif
     map = mapsegs[0];
     for (y=0;y<mapheight;y++)
@@ -698,13 +689,12 @@ void SetupGameLevel (void)
         for (x=0;x<mapwidth;x++)
         {
             tile = *map++;
-            offset = mapylookup[y] + x;
 
             if (tile < AMBUSHTILE)
             {
                 // solid wall
-                tilemap[offset] = tile;
-                actorat[offset] = (objtype *)(uintptr_t) tile;
+                tilemap[x][y] = tile;
+                actorat[x][y] = (objtype *)(uintptr_t) tile;
             }
         }
     }

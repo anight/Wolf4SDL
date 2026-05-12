@@ -118,7 +118,7 @@ void Quit (const char *errorStr, ...);
 =============================================================================
 */
 
-#define MAPSPOT(x,y,plane) (mapsegs[(plane)][mapylookup[(y)] + (x)])
+#define MAPSPOT(x,y,plane) (mapsegs[(plane)][((y) * mapwidth) + (x)])
 #define VALIDAREA(x)    ((x) >= AREATILE && (x) < (AREATILE + NUMAREAS))
 
 #define SIGN(x)         ((x) > 0 ? 1 : -1)
@@ -1078,11 +1078,11 @@ extern  boolean     madenoise;
 extern  objtype     objlist[MAXACTORS];
 extern  objtype     *player,*objfreelist;
 
-extern  tiletype    *tilemap;                       // wall values only
-extern  bool        *spotvis;
-extern  objtype     **actorat;
+extern  tiletype    tilemap[MAPSIZE][MAPSIZE];      // wall values only
+extern  bool        spotvis[MAPSIZE][MAPSIZE];
+extern  objtype     *actorat[MAPSIZE][MAPSIZE];
 #ifdef REVEALMAP
-extern  bool        *mapseen;
+extern  bool        mapseen[MAPSIZE][MAPSIZE];
 #endif
 extern  boolean     singlestep,godmode,noclip,ammocheat,mapreveal;
 extern  int         extravbls;
