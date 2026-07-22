@@ -876,6 +876,9 @@ void SpawnStand (int which, int tilex, int tiley, int dir)
             if (!loadedgame)
                 gamestate.killtotal++;
             break;
+
+        default:
+            Quit ("SpawnStand: Tried to spawn invalid actor of type %d at %dx%d",guardobj + which,tilex,tiley);
     }
 
 
@@ -1024,6 +1027,9 @@ void SpawnPatrol (int which, int tilex, int tiley, int dir)
             if (!loadedgame)
                 gamestate.killtotal++;
             break;
+
+        default:
+            Quit ("SpawnPatrol: Tried to spawn invalid actor of type %d at %dx%d",guardobj + which,tilex,tiley);
     }
 
     newobj->obclass = guardobj+which;
@@ -2017,6 +2023,9 @@ void SpawnGhosts (int which, int tilex, int tiley)
         case en_inky:
             newobj = SpawnNewObj(tilex,tiley,&s_inkychase1);
             break;
+
+        default:
+            Quit ("SpawnGhosts: Tried to spawn invalid enemy type %d at %dx%d",which,tilex,tiley);
     }
 
     newobj->obclass = ghostobj;
