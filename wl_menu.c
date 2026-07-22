@@ -722,9 +722,8 @@ CP_CheckQuick (ScanCode scancode)
                 lastgamemusicoffset = StartCPMusic (MENUSONG);
                 pickquick = CP_SaveGame (0);
 
-                SETFONTCOLOR (0, 15);
-                IN_ClearKeysDown ();
                 VW_FadeOut();
+                VW_SetBufferOffset (0);
                 if(viewsize != 21)
                     DrawPlayScreen ();
 
@@ -762,9 +761,8 @@ CP_CheckQuick (ScanCode scancode)
                 lastgamemusicoffset = StartCPMusic (MENUSONG);
                 pickquick = CP_LoadGame (0);    // loads lastgamemusicoffs
 
-                SETFONTCOLOR (0, 15);
-                IN_ClearKeysDown ();
                 VW_FadeOut();
+                VW_SetBufferOffset (0);
                 if(viewsize != 21)
                     DrawPlayScreen ();
 
