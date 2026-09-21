@@ -22,7 +22,13 @@ void *safe_malloc (size_t size, const char *fname, uint32_t line)
     if (!ptr)
     {
         snprintf (str,sizeof(str),"%s",fname);
+#ifdef PICOWOLF
+        // newlib has no basename(), and the whole path is short enough to
+        // print on a console that is the only place this will ever be read.
+        Quit ("SafeMalloc: Error allocating %u bytes: %s\nFile: %s Line %u",size,strerror(errno),str,line);
+#else
         Quit ("SafeMalloc: Error allocating %u bytes: %s\nFile: %s Line %u",size,strerror(errno),basename(str),line);
+#endif
     }
 
     return ptr;
@@ -117,5 +123,59 @@ void Error (const char *string)
 
 void Help (const char *string)
 {
+#ifdef PICOWOLF
+    // No window manager to put a box in front of; the console is the console.
+    printf ("%s\n",string);
+#else
     SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_INFORMATION,"Wolf4SDL",string,NULL);
+#endif
 }
+
+
+#ifndef _WIN32
+
+char *ltoa (long value, char *string, int radix)
+{
+    static const char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+
+    char          tmp[8 * sizeof(long) + 2];
+    char         *out = string;
+    unsigned long v;
+    int           i = 0;
+
+    if (radix < 2 || radix > 36)
+    {
+        *string = '\0';
+
+        return string;
+    }
+
+    if (value < 0 && radix == 10)
+    {
+        *out++ = '-';
+        v = (unsigned long) -(value + 1) + 1;   // also correct for LONG_MIN
+    }
+    else
+        v = (unsigned long) value;
+
+    do
+    {
+        tmp[i++] = digits[v % (unsigned long) radix];
+        v /= (unsigned long) radix;
+    }
+    while (v != 0);
+
+    while (i > 0)
+        *out++ = tmp[--i];
+
+    *out = '\0';
+
+    return string;
+}
+
+char *itoa (int value, char *string, int radix)
+{
+    return ltoa (value,string,radix);
+}
+
+#endif

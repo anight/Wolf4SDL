@@ -8,7 +8,13 @@
 #ifndef	__ID_IN_H_
 #define	__ID_IN_H_
 
+#ifdef SDL_TEXTINPUTEVENT_TEXT_SIZE
 #define TEXTINPUTSIZE   SDL_TEXTINPUTEVENT_TEXT_SIZE
+#else
+// PicoSDL has no text input events.  This only sizes the buffer the menu's
+// first-letter search reads, and one character is all it ever holds.
+#define TEXTINPUTSIZE   32
+#endif
 
 #define	sc_None         SDL_SCANCODE_UNKNOWN
 #define	sc_Bad          0x7fffffff

@@ -1909,9 +1909,13 @@ DrawCtlScreen (void)
 
 int ChangeDisplay (int blank)
 {
-    int             which;
-    screen_t        newscr;
+    int      which;
+    screen_t newscr;
+#ifndef PICOWOLF
+    // Only the resolution items needed the desktop's mode list, and they are
+    // gone; PicoSDL has no such type.
     SDL_DisplayMode dm;
+#endif
 
     DrawDisplayMenu (&screen);
     MenuFadeIn ();
@@ -3503,6 +3507,7 @@ ReadAnyControl (ControlInfo * ci)
 
     IN_ReadControl (ci);
 
+#ifndef PICOWOLF
     if (mouseenabled && (screen.flags & SC_INPUTGRABBED))
     {
         int mousex, mousey, buttons;
@@ -3554,6 +3559,7 @@ ReadAnyControl (ControlInfo * ci)
             mouseactive = 1;
         }
     }
+#endif  /* PICOWOLF: no mouse to read */
 
     if (joystickenabled && !mouseactive)
     {
@@ -3882,6 +3888,7 @@ CheckForEpisodes (void)
     }
 #endif
 
+#ifndef PICOWOLF
     if(configdir[0] != 0)
     {
         // Ensure config directory exists and create if necessary
@@ -3897,6 +3904,7 @@ CheckForEpisodes (void)
             }
         }
     }
+#endif  /* PICOWOLF: nowhere to put one */
 
 //
 // JAPANESE VERSION

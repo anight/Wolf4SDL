@@ -11,7 +11,9 @@ Id Software Caching Manager
 */
 
 #include <sys/types.h>
-#if defined _WIN32
+#if defined PICOWOLF
+    // No filesystem, so none of the headers that describe one.
+#elif defined _WIN32
     #include <io.h>
 #elif defined _arch_dreamcast
     #include <unistd.h>

@@ -88,7 +88,7 @@ int8_t *demoptr, *lastdemoptr;
 int controlx,controly,controlturnx;         // range from -100 to 100 per tic
 boolean buttonstate[NUMBUTTONS];
 
-int lastgamemusicoffset = 0;
+int32_t lastgamemusicoffset = 0;   // int32_t, matching wl_def.h
 
 
 //===========================================================================
@@ -355,6 +355,14 @@ void PollKeyboardMove (void)
 
 void PollMouseMove (void)
 {
+#ifdef PICOWOLF
+    //
+    // MousePresent is false and mouseenabled follows it, so PollControls()
+    // never calls this.  It stays defined because the call site does not
+    // disappear with the mouse.
+    //
+    return;
+#else
     int mousexmove, mouseymove;
 
     SDL_GetRelativeMouseState(&mousexmove, &mouseymove);
@@ -368,6 +376,7 @@ void PollMouseMove (void)
 
         controly += (mouseymove * 20) / (13 - mouseadjustment);
     }
+#endif
 }
 
 

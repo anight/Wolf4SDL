@@ -94,6 +94,45 @@ CASSERT(lengthof(gamepal) == 256)
 =======================
 */
 
+#ifdef PICOWOLF
+
+/*
+= The two framebuffers, static because PicoSDL allocates no pixels and its
+= arena is 16 KB against the 62,500 one of these needs.
+=
+= There are two of them for the same reason the desktop has two: FizzleFade
+= dissolves the new frame into the displayed one, so it wants a source and a
+= destination.  That costs 125 KB of a 520 KB SRAM and a 64,000-byte copy per
+= frame, and collapsing it is its own job - see TODO.md.
+*/
+#define PICOWOLF_CANVAS (320 * 200)
+
+static Uint8 PanelCanvas[PICOWOLF_CANVAS];
+static Uint8 DrawCanvas[PICOWOLF_CANVAS];
+
+void VW_Startup (void)
+{
+#ifdef SPEAR
+    screen.title = "Spear of Destiny";
+#else
+    screen.title = "Wolfenstein 3D";
+#endif
+
+    if (screen.width * screen.height != PICOWOLF_CANVAS)
+        Quit ("VW_Startup: canvas is %dx%d, not 320x200",screen.width,screen.height);
+
+    screen.window = PSDL_CreateWindow(PanelCanvas,screen.width,screen.height,
+                                      screen.width);
+
+    if (!screen.window)
+        Quit ("Unable to create window: %s\n",SDL_GetError());
+
+    VW_SetupVideo ();
+    VW_InitRndMask ();
+}
+
+#else
+
 void VW_Startup (void)
 {
     int      x,y;
@@ -132,6 +171,8 @@ void VW_Startup (void)
     VW_SetupVideo ();
     VW_InitRndMask ();
 }
+
+#endif  /* PICOWOLF */
 
 
 /*
@@ -207,7 +248,13 @@ void VW_SetupVideo (void)
     //
     // create 8 bit screen buffer for drawing
     //
+#ifdef PICOWOLF
+    // Over the static canvas: PicoSDL wraps client pixels without copying,
+    // and has nowhere to allocate 62,500 bytes from.
+    screen.buffer = SDL_CreateRGBSurfaceFrom(DrawCanvas,w,h,8,w,0,0,0,0);
+#else
     screen.buffer = SDL_CreateRGBSurface(0,w,h,8,0,0,0,0);
+#endif
 
     if (!screen.buffer)
         Quit ("Unable to create screen buffer surface: %s\n",SDL_GetError());
@@ -226,7 +273,9 @@ void VW_SetupVideo (void)
 
     VW_SetBufferOffset (screen.heightoffset);
 
+#ifndef PICOWOLF
     SDL_SetWindowMinimumSize (screen.window,screen.basewidth,screen.baseheight);
+#endif
 }
 
 
@@ -237,6 +286,26 @@ void VW_SetupVideo (void)
 =
 ===================
 */
+
+#ifdef PICOWOLF
+
+/*
+= The panel is one size for ever and there is no window manager to ask, so
+= there is no display to change.  The menu item that called this is gone with
+= the resolution options; this stays because the fullscreen toggle still
+= reaches it.
+*/
+void VW_ChangeDisplay (screen_t *scr)
+{
+    (void)scr;
+}
+
+void VW_ChangeWindow (screen_t *scr)
+{
+    (void)scr;
+}
+
+#else
 
 void VW_ChangeDisplay (screen_t *scr)
 {
@@ -331,6 +400,8 @@ void VW_ChangeWindow (screen_t *scr)
         SDL_SetWindowPosition (screen.window,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
     }
 }
+
+#endif  /* PICOWOLF */
 
 
 /*
@@ -571,6 +642,14 @@ void VW_FadePaletteIn (SDL_Color *palette, int steps)
 
 =============================================================================
 */
+
+//
+// PicoSDL has no SDL_MUSTLOCK: a surface is plain memory there and never needs
+// locking, so the answer is always no.
+//
+#ifndef SDL_MUSTLOCK
+#define SDL_MUSTLOCK(s) (0)
+#endif
 
 void *VW_LockSurface (SDL_Surface *surface)
 {

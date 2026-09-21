@@ -1244,7 +1244,11 @@ SD_MusicOn(void)
 //      returns the last music offset for music continue
 //
 ///////////////////////////////////////////////////////////////////////////
-int
+//
+// int32_t, matching id_sd.h.  The two were int and int32_t, which is the same
+// type on a 32-bit desktop and is not on arm-none-eabi, where int32_t is long.
+//
+int32_t
 SD_MusicOff(void)
 {
     word    i;

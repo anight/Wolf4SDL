@@ -59,6 +59,13 @@ static	byte    DirTable[] =        // Quick lookup for total direction
 ///////////////////////////////////////////////////////////////////////////
 static int INL_GetMouseButtons (void)
 {
+#ifdef PICOWOLF
+    //
+    // There is no mouse and MousePresent is false, so nothing should reach
+    // here.  "No buttons" is what a mouse with none would answer.
+    //
+    return 0;
+#else
     int buttons = SDL_GetMouseState(NULL,NULL);
     int middlePressed = buttons & SDL_BUTTON(SDL_BUTTON_MIDDLE);
     int rightPressed = buttons & SDL_BUTTON(SDL_BUTTON_RIGHT);
@@ -71,6 +78,7 @@ static int INL_GetMouseButtons (void)
         buttons |= 1 << 1;
 
     return buttons;
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -88,7 +96,9 @@ void IN_GetJoyDelta (int *dx, int *dy)
         return;
     }
 
-    SDL_JoystickUpdate();
+#ifndef PICOWOLF
+    SDL_JoystickUpdate();   // PicoSDL polls the stick in SDL_PumpEvents()
+#endif
 #ifdef _arch_dreamcast
     int x = 0;
     int y = 0;
@@ -97,6 +107,8 @@ void IN_GetJoyDelta (int *dx, int *dy)
     int y = SDL_JoystickGetAxis(Joystick,1) >> 8;
 #endif
 
+#ifndef PICOWOLF
+    // The board's stick has two axes and no hat.
     if (param_joystickhat != -1)
     {
         uint8_t hatState = SDL_JoystickGetHat(Joystick,param_joystickhat);
@@ -114,6 +126,7 @@ void IN_GetJoyDelta (int *dx, int *dy)
         x = MAX(-128,MIN(x,127));
         y = MAX(-128,MIN(y,127));
     }
+#endif
 
     *dx = x;
     *dy = y;
@@ -135,7 +148,9 @@ void IN_GetJoyFineDelta (int *dx, int *dy)
         return;
     }
 
-    SDL_JoystickUpdate();
+#ifndef PICOWOLF
+    SDL_JoystickUpdate();   // PicoSDL polls the stick in SDL_PumpEvents()
+#endif
 
     int x = SDL_JoystickGetAxis(Joystick,0);
     int y = SDL_JoystickGetAxis(Joystick,1);
@@ -162,7 +177,9 @@ int IN_JoyButtons (void)
     if (!Joystick)
         return 0;
 
-    SDL_JoystickUpdate();
+#ifndef PICOWOLF
+    SDL_JoystickUpdate();   // PicoSDL polls the stick in SDL_PumpEvents()
+#endif
 
     int res = 0;
 
@@ -188,8 +205,10 @@ boolean IN_JoyPresent (void)
 
 void IN_CenterMouse (void)
 {
+#ifndef PICOWOLF
     if (screen.flags & SC_INPUTGRABBED)
         SDL_WarpMouseInWindow (screen.window,screen.width / 2,screen.height / 2);
+#endif
 }
 
 
@@ -216,7 +235,12 @@ ScanCode IN_MapKey (int key)
         case sc_KeyPad4:
         case sc_KeyPad6:
         case sc_KeyPad8:
+#ifdef PICOWOLF
+            // No Num Lock to consult; the keypad is always a direction.
+            if (1)
+#else
             if (!(SDL_GetModState() & KMOD_NUM))
+#endif
             {
                 switch (key)
                 {
@@ -243,6 +267,13 @@ ScanCode IN_MapKey (int key)
 
 void IN_SetWindowGrab (SDL_Window *window)
 {
+#ifdef PICOWOLF
+    //
+    // Nothing to grab from: no pointer, no cursor, and no other window that
+    // could have the input instead.
+    //
+    (void)window;
+#else
     const char *which[] = {"hide","show"};
 
     boolean grabinput = (screen.flags & SC_INPUTGRABBED) != 0;
@@ -254,6 +285,7 @@ void IN_SetWindowGrab (SDL_Window *window)
 
     if (SDL_SetRelativeMouseMode(grabinput))
         Quit ("Unable to set relative mode for mouse: %s\n",SDL_GetError());
+#endif
 }
 
 
@@ -350,8 +382,17 @@ void IN_ProcessEvents (void)
 
 void IN_WaitEvent (void)
 {
+#ifdef PICOWOLF
+    //
+    // PicoSDL has no SDL_WaitEvent.  The only caller processes the queue
+    // straight afterwards, so the point of waiting is not to spin while it is
+    // empty - and a short sleep does that without the call.
+    //
+    SDL_Delay (5);
+#else
     if (!SDL_WaitEvent(NULL))
         Quit ("Error waiting for event: %s\n",SDL_GetError());
+#endif
 }
 
 
@@ -380,6 +421,15 @@ void IN_Startup(void)
 
         if (Joystick)
         {
+#ifdef PICOWOLF
+            //
+            // The board's controller is a known device rather than one to
+            // interrogate.  PicoSDL maps it to a fixed set of buttons and one
+            // two-axis stick, and has no count to ask for.
+            //
+            JoyNumButtons = 8;
+            JoyNumHats = 0;
+#else
             JoyNumButtons = SDL_JoystickNumButtons(Joystick);
 
             if (JoyNumButtons > 32)
@@ -389,16 +439,21 @@ void IN_Startup(void)
 
             if (param_joystickhat < -1 || param_joystickhat >= JoyNumHats)
                 Quit ("The joystickhat param must be between 0 and %i!",JoyNumHats - 1);
+#endif
         }
     }
 
+#ifndef PICOWOLF
     SDL_EventState (SDL_MOUSEMOTION,SDL_IGNORE);
+#endif
 
     if (screen.flags & (SC_FULLSCREEN | SC_INPUTGRABBED))
         IN_SetWindowGrab (screen.window);
 
     // I didn't find a way to ask libSDL whether a mouse is present, yet...
-#if defined(GP2X)
+#if defined(PICOWOLF)
+    MousePresent = false;
+#elif defined(GP2X)
     MousePresent = false;
 #elif defined(_arch_dreamcast)
     MousePresent = DC_MousePresent();

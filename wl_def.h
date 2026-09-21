@@ -1124,7 +1124,7 @@ void    RemoveObj (objtype *gone);
 void    PollControls (void);
 int32_t StopMusic (void);
 void    StartMusic (void);
-void    ContinueMusic (int offs);
+void    ContinueMusic (int32_t offs);
 void    StartDamageFlash (int damage);
 void    StartBonusFlash (void);
 
@@ -1496,63 +1496,15 @@ void GP2X_ButtonUp (int button);
 
 #define ISPOINTER(x) ((((uintptr_t)(x)) & ~0xffff) != 0)
 
+//
+// Stand-ins for the MSVC runtime's itoa and ltoa, which the rest of this
+// codebase is written against.  Defined in wl_utils.c rather than here: newlib
+// declares both in <stdlib.h> without defining them, and a static definition
+// after a non-static declaration is an error.
+//
 #ifndef _WIN32
-    //
-    // Stand-ins for the MSVC runtime's itoa/ltoa, which the rest of this
-    // codebase is written against.  As there, the caller guarantees the buffer
-    // is large enough: the signature has nowhere to say how big it is.
-    //
-    // What was here tried to discover that with strlen() on the destination,
-    // which reads the buffer before anything has written it and then passes
-    // that accidental length to snprintf as a limit.  The number came out
-    // truncated to however many non-NUL bytes of stack garbage happened to
-    // precede it - and empty whenever the first byte was already NUL, which is
-    // why the intermission ratios were blank and the status bar showed "1%"
-    // for 100.  It also ignored radix.
-    //
-    static inline char *ltoa (long value, char *string, int radix)
-    {
-        static const char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-
-        char          tmp[8 * sizeof(long) + 2];
-        char         *out = string;
-        unsigned long v;
-        int           i = 0;
-
-        if (radix < 2 || radix > 36)
-        {
-            *string = '\0';
-
-            return string;
-        }
-
-        if (value < 0 && radix == 10)
-        {
-            *out++ = '-';
-            v = (unsigned long) -(value + 1) + 1;   // also correct for LONG_MIN
-        }
-        else
-            v = (unsigned long) value;
-
-        do
-        {
-            tmp[i++] = digits[v % (unsigned long) radix];
-            v /= (unsigned long) radix;
-        }
-        while (v != 0);
-
-        while (i > 0)
-            *out++ = tmp[--i];
-
-        *out = '\0';
-
-        return string;
-    }
-
-    static inline char *itoa (int value, char *string, int radix)
-    {
-        return ltoa (value,string,radix);
-    }
+char *ltoa (long value, char *string, int radix);
+char *itoa (int value, char *string, int radix);
 #endif
 
 

@@ -8,7 +8,11 @@
 
 #include "wl_def.h"
 #include "wl_atmos.h"
+#ifndef PICOWOLF
+// Desktop window-manager hooks.  Nothing here uses them and there is no window
+// manager on the board.
 #include <SDL_syswm.h>
+#endif
 
 
 /*
@@ -1794,7 +1798,16 @@ void CheckParameters(int argc, char *argv[])
 ==========================
 */
 
+//
+// On the board this is not the entry point: src/wolf_main.c owns main(), sets
+// the clock and brings up stdio before anything here can print, and decides
+// what a fatal error looks like when there is no shell to return to.
+//
+#ifdef PICOWOLF
+int WolfMain (int argc, char *argv[])
+#else
 int main (int argc, char *argv[])
+#endif
 {
 #if defined(_arch_dreamcast)
     DC_Init();

@@ -101,6 +101,16 @@ void CountObjects (void)
 
 void PictureGrabber (void)
 {
+#ifdef PICOWOLF
+    //
+    // There is nowhere to put it.  The debug menu keeps the item so it does
+    // not change shape, and says what happened.
+    //
+    CenterWindow (18,2);
+    US_PrintCentered ("No filesystem");
+    VW_UpdateScreen();
+    IN_Ack();
+#else
     int i;
     FILE *file;
     static char fname[] = "WSHOT000.BMP";
@@ -127,6 +137,7 @@ void PictureGrabber (void)
     US_PrintCentered ("Screenshot taken");
     VW_UpdateScreen();
     IN_Ack();
+#endif
 }
 
 
