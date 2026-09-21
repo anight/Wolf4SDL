@@ -1073,6 +1073,27 @@ void VW_UpdateScreen (void)
         SDL_BlitSurface (screen.buffer,NULL,screen.surface,NULL);
 
     SDL_UpdateWindowSurface (screen.window);
+
+#ifdef PICOWOLF
+    //
+    // Wait for the panel to finish reading the framebuffer before anything
+    // draws into it again.
+    //
+    // The present starts a DMA and returns; with two buffers the next frame
+    // goes into the other one and the transfer runs underneath it, which is
+    // where the frame rate comes from.  With one there is no other one - the
+    // game's next write lands in the bytes the panel is still reading, and
+    // what reaches the glass is half of each frame.  That is invisible on a
+    // desktop, where the host backend's present copies synchronously; it is
+    // the whole of the difference on hardware.
+    //
+    // Waiting here rather than before the next draw costs that overlap.  It is
+    // the only point the game passes through between presenting and drawing
+    // again - menus, the HUD and the 3D view all draw from their own places -
+    // so buying the time back means finding a later one.  See TODO.md.
+    //
+    PSDL_PresentSync ();
+#endif
 }
 
 

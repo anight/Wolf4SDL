@@ -29,6 +29,15 @@ boolean	    Paused;
 ScanCode	LastScan;
 
 static SDL_Joystick *Joystick;
+#ifdef PICOWOLF
+//
+// The pad and the stick are one device to PicoSDL, but they arrive through two
+// APIs: the stick's axes and its click on the joystick calls, and the pad's
+// A, B, X and Y on the game controller ones.  Wolf only ever read the joystick
+// side, which is why nothing but the stick click did anything.
+//
+static SDL_GameController *Controller;
+#endif
 int JoyNumButtons;
 static int JoyNumHats;
 
@@ -183,10 +192,39 @@ int IN_JoyButtons (void)
 
     int res = 0;
 
+#ifdef PICOWOLF
+    //
+    // A, B, X and Y as buttons 0 to 3, so buttonjoy[] maps them the way the
+    // Control menu shows them, then Start and Back.
+    //
+    if (Controller)
+    {
+        static const int pad[] = {
+            SDL_CONTROLLER_BUTTON_A, SDL_CONTROLLER_BUTTON_B,
+            SDL_CONTROLLER_BUTTON_X, SDL_CONTROLLER_BUTTON_Y,
+            SDL_CONTROLLER_BUTTON_START, SDL_CONTROLLER_BUTTON_BACK,
+        };
+
+        for (i = 0; i < (int)lengthof(pad); i++)
+            res |= SDL_GameControllerGetButton(Controller,pad[i]) << i;
+    }
+
+    //
+    // The analog stick's click shares bit 0 with A, so both fire - and it
+    // keeps working on a board that has a stick and no pad, where the loop
+    // above does nothing.  It is a separate button on a separate device;
+    // returning early after the pad lost it entirely.
+    //
+    res |= SDL_JoystickGetButton(Joystick,0);
+
+    return res;
+#else
+
     for (i = 0; i < JoyNumButtons && i < 32; i++)
         res |= SDL_JoystickGetButton(Joystick,i) << i;
 
     return res;
+#endif
 }
 
 boolean IN_JoyPresent (void)
@@ -427,7 +465,10 @@ void IN_Startup(void)
             // interrogate.  PicoSDL maps it to a fixed set of buttons and one
             // two-axis stick, and has no count to ask for.
             //
-            JoyNumButtons = 8;
+            if (SDL_IsGameController(param_joystickindex))
+                Controller = SDL_GameControllerOpen(param_joystickindex);
+
+            JoyNumButtons = Controller ? 6 : 1;
             JoyNumHats = 0;
 #else
             JoyNumButtons = SDL_JoystickNumButtons(Joystick);
@@ -477,6 +518,14 @@ void IN_Shutdown(void)
 {
 	if (!IN_Started)
 		return;
+
+#ifdef PICOWOLF
+    if (Controller)
+    {
+        SDL_GameControllerClose(Controller);
+        Controller = NULL;
+    }
+#endif
 
     if (Joystick)
         SDL_JoystickClose(Joystick);

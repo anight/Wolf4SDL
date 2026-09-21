@@ -2951,8 +2951,24 @@ IntroScreen (void)
     if (IN_JoyPresent())
         VW_Bar (164, 105, 12, 2, FILLCOLOR);
 
+    //
+    // The either/or is a statement about 1992 hardware: a Sound Blaster has an
+    // OPL on it, so a machine with one has no separate AdLib to report and the
+    // screen names the better card.  SD_Startup() sets both flags, so on a
+    // desktop the AdLib lamp is never lit.
+    //
+    // The board is not that machine.  There is an OPL - DBOPL, on core 1 - and
+    // there is digitised sound, and they are different pieces of hardware
+    // rather than one standing in for the other.  So both lamps light, because
+    // both things are true.
+    //
+#ifdef PICOWOLF
+    if (AdLibPresent)
+        VW_Bar (164, 128, 12, 2, FILLCOLOR);
+#else
     if (AdLibPresent && !SoundBlasterPresent)
         VW_Bar (164, 128, 12, 2, FILLCOLOR);
+#endif
 
     if (SoundBlasterPresent)
         VW_Bar (164, 151, 12, 2, FILLCOLOR);

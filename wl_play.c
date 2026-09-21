@@ -63,8 +63,16 @@ int     buttonscan[NUMBUTTONS] =
 };
 
 int     buttonmouse[4] = { bt_attack, bt_strafe, bt_use, bt_nobutton };
+//
+// On the board these are the pad's A, B, X, Y, Start and Back, in that order -
+// see IN_JoyButtons().  Fire on A and open on B is what a four-button pad
+// wants; the Control menu can still rebind any of them.
+//
 int     buttonjoy[32] = {
-#ifdef _arch_dreamcast
+#if defined(PICOWOLF)
+    bt_attack, bt_use, bt_run, bt_strafe, bt_esc, bt_pause, bt_nobutton, bt_nobutton,
+    bt_nobutton, bt_nobutton, bt_nobutton, bt_nobutton, bt_nobutton, bt_nobutton, bt_nobutton, bt_nobutton,
+#elif defined(_arch_dreamcast)
     bt_attack, bt_strafe, bt_use, bt_run, bt_esc, bt_prevweapon, bt_nobutton, bt_nextweapon,
     bt_pause, bt_strafeleft, bt_straferight, bt_nobutton, bt_nobutton, bt_nobutton, bt_nobutton, bt_nobutton,
 #else
