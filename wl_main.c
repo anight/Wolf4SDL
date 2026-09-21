@@ -70,6 +70,16 @@ int32_t  heightnumerator;
 boolean startgame;
 boolean loadedgame;
 int     mouseadjustment;
+//
+// Every field after the magic is a raw read of whatever the struct layout
+// happened to be, so the magic has to change whenever that layout does.  It
+// did not when free look was added ahead of joystickenabled, when dirscan was
+// dropped, or when the screen fields were appended, which left an older file
+// accepted and read into the wrong offsets - a sound mode of 16,908,546 and a
+// Quit before the title screen.  Bump this with the layout.
+//
+#define CONFIGMAGIC 0xfefb
+
 int     savedsoundmode = -1;
 int     savedmusicmode = -1;
 int     saveddigimode = -1;
@@ -168,7 +178,7 @@ void ReadConfig(void)
         word tmp;
         fread (&tmp,sizeof(tmp),1,file);
 
-        if (tmp!=0xfefa)
+        if (tmp!=CONFIGMAGIC)
         {
             fclose (file);
             goto noconfig;
@@ -225,6 +235,15 @@ void ReadConfig(void)
         if(viewsize<4) viewsize=4;
         else if(viewsize>21) viewsize=21;
 
+        //
+        // A bad mode here used to reach SD_SetSoundMode(), which answers an
+        // unknown one by quitting.  A config file is not a reason to refuse to
+        // start: fall back to the default the sound manager picks for -1.
+        //
+        if(savedsoundmode < sdm_Off || savedsoundmode > sdm_AdLib) savedsoundmode = -1;
+        if(savedmusicmode < smm_Off || savedmusicmode > smm_AdLib) savedmusicmode = -1;
+        if(saveddigimode < sds_Off || saveddigimode > sds_SoundBlaster) saveddigimode = -1;
+
         MainMenu[6].active=1;
         MainItems.curpos=0;
     }
@@ -272,7 +291,7 @@ void WriteConfig(void)
 
     if (file)
     {
-        word tmp=0xfefa;
+        word tmp=CONFIGMAGIC;
         fwrite (&tmp,sizeof(tmp),1,file);
         fwrite (Scores,sizeof(Scores),1,file);
 
