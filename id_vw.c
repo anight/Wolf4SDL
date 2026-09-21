@@ -961,7 +961,7 @@ void VW_DrawPic (int x, int y, int chunknum)
 =================
 */
 
-void VW_MemToScreen (byte *source, int width, int height, int x, int y)
+void VW_MemToScreen (const byte *source, int width, int height, int x, int y)
 {
     byte *dest;
     int color;

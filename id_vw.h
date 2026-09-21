@@ -121,7 +121,7 @@ void VW_UpdateScreen (void);
 void VW_SegToScreen (byte *source, int srcwidth, int srcx, int srcy,
                      int destx, int desty, int width, int height);
 
-void VW_MemToScreen (byte *source, int width, int height, int x, int y);
+void VW_MemToScreen (const byte *source, int width, int height, int x, int y);
 
 void VW_MeasurePropString (const char *string, word *width, word *height);
 
