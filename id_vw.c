@@ -34,7 +34,28 @@
     #endif
 #endif
 
-screen_t screen;
+//
+// The port is fixed at VGA mode 13h: 320x200 in 256 indexed colours.  That is
+// the format the original art is already stored in, so at this size nothing
+// scales and nothing is resampled - every pic, wall texture and sprite lands
+// on the framebuffer at its authored size and screen.scale is 1.  It is also
+// the only mode the target hardware has.
+//
+// screen.bits is the depth of screen.buffer, the framebuffer the game draws
+// into.  screen.surface is the display it is shown on and need not be 8-bit:
+// on a desktop it is whatever the window manager hands out, and the blit in
+// VW_UpdateScreen() stands in for the hardware that expands indices through a
+// CLUT on the way to a panel.  Code that touches the display asks the display
+// what format it is; it must not assume screen.bits.
+//
+screen_t screen =
+{
+    .width  = 320,
+    .height = 200,
+    .bits   = 8,
+    .scale  = 1,
+};
+
 unsigned bordercolor;
 
 pictabletype	*pictable;
@@ -175,15 +196,13 @@ void VW_SetupVideo (void)
 
     //
     // The window's own framebuffer is the presentation target: no renderer, no
-    // texture, no format negotiation.  The platform states the depth it will
-    // give us and screen.bits reports it rather than choosing it.
+    // texture, no format negotiation.  The platform states the depth it gives
+    // us; screen.bits describes screen.buffer and is not it.
     //
     screen.surface = SDL_GetWindowSurface(screen.window);
 
     if (!screen.surface)
         Quit ("Unable to get the window surface: %s\n",SDL_GetError());
-
-    screen.bits = screen.surface->format->BitsPerPixel;
 
     //
     // create 8 bit screen buffer for drawing
@@ -1071,8 +1090,9 @@ boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolea
                 //
                 // copy one pixel
                 //
-                if (screen.bits == 8)
+                if (screen.surface->format->palette)
                 {
+                    // The display is indexed too, so the index travels as-is.
                     *(destptr + (y1 + y) * screen.surface->pitch + x1 + x)
                         = *(srcptr + (y1 + y) * screen.buffer->pitch + x1 + x);
                 }

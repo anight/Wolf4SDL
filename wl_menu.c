@@ -123,9 +123,6 @@ CP_itemtype DispMenu[NUMDISPITEMS] =
     {1, "Hardware Acceleration", 0},
 #endif
     {1, "Fullscreen", 0},
-    {1, "Aspect Ratio:", 0},
-    {1, "Resolution:", 0},
-    {1, "Apply", 0},
 };
 
 
@@ -1949,28 +1946,6 @@ int ChangeDisplay (int blank)
                 screen.flags ^= SC_FULLSCREEN;
                 VW_ChangeDisplay (&screen);
                 break;
-
-            case DISP_RATIO:
-                newscr.heightoffset ^= 1;
-                break;
-
-            case DISP_RES:
-                if (SDL_GetDesktopDisplayMode(0,&dm))
-                    Quit ("Unable to get desktop display mode: %s\n",SDL_GetError());
-
-                if (dm.w % 320)
-                {
-                    dm.w += 320;
-                    dm.w -= dm.w % 320;
-                }
-
-                if (++newscr.scale > dm.w / 320)
-                    newscr.scale = 1;
-                break;
-
-            case DISP_APPLY:
-                VW_ChangeDisplay (&newscr);
-                break;
         }
 
         if (which != -1)
@@ -1996,8 +1971,9 @@ int ChangeDisplay (int blank)
 
 void DrawDisplayMenu (screen_t *scr)
 {
-    int  x,y;
-    word w,h;
+    int x,y;
+
+    (void)scr;
 
     ClearMScreen ();
 
@@ -2005,14 +1981,6 @@ void DrawDisplayMenu (screen_t *scr)
 
     VW_DrawPic (80,0,C_CONTROLPIC);
     DrawWindow (DISP_X - 8,DISP_Y - 5,DISP_W,DISP_H,BKGDCOLOR);
-
-    scr->width = scr->scale * 320;
-    scr->height = scr->scale * ((scr->heightoffset) ? 240 : 200);
-
-    if (scr->scale != screen.scale || scr->width != screen.width || scr->height != screen.height)
-        DispMenu[DISP_APPLY].active = 1;
-    else
-        DispMenu[DISP_APPLY].active = 0;
 
     DrawMenu (&DispItems,DispMenu);
 
@@ -2024,25 +1992,6 @@ void DrawDisplayMenu (screen_t *scr)
     y += 13;
 #endif
     VW_DrawPic (x,y,selectedpic[(screen.flags & SC_FULLSCREEN) != 0]);
-
-    VW_MeasurePropString (DispMenu[DISP_RATIO].string,&w,&h);
-
-    PrintX = WindowX + w + 3;
-    PrintY = y + 13 - 3;
-
-    if (scr->heightoffset)
-        US_Print ("4:3");
-    else
-        US_Print ("16:10");
-
-    VW_MeasurePropString (DispMenu[DISP_RES].string,&w,&h);
-
-    PrintX = WindowX + w + 3;
-    PrintY += 13;
-
-    snprintf (str,sizeof(str),"%dx%d",scr->width,scr->height);
-
-    US_Print (str);
 
     VW_UpdateScreen ();
 }

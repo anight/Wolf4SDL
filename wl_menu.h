@@ -239,9 +239,6 @@ enum dispitemtype
     DISP_HWACCEL,
 #endif
     DISP_FULLSCREEN,
-    DISP_RATIO,
-    DISP_RES,
-    DISP_APPLY,
 
     NUMDISPITEMS
 };

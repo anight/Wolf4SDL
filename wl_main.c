@@ -116,24 +116,12 @@ boolean param_ignorenumchunks;
 
 void SetupDisplayDefaults (void)
 {
-    uint32_t        flags = 0;
-    SDL_DisplayMode dm;
+    uint32_t flags = 0;
 
-    if (!screen.width)
-    {
-        if (SDL_GetDesktopDisplayMode(0,&dm))
-            Quit ("Unable to get desktop display mode: %s\n",SDL_GetError());
-
-        screen.width = dm.w;
-
-        if (screen.width % 320)
-        {
-            screen.width += 320;
-            screen.width -= screen.width % 320;
-        }
-
-        screen.height = (200 * screen.width) / 320;
-    }
+    //
+    // The resolution is fixed at 320x200, so there is no desktop mode to
+    // measure and round to a multiple of it.
+    //
 
     //
     // There is no renderer to pick, so there are no render drivers to probe
@@ -210,15 +198,10 @@ void ReadConfig(void)
         fread (&mouseadjustment,sizeof(mouseadjustment),1,file);
 
         //
-        // skip over the screen resolution variables if we already have a width set
+        // The resolution is not a setting any more, but the fields stay in the
+        // file so an existing config still reads: skip over them.
         //
-        if (screen.width)
-            fseek (file,sizeof(screen.width) + sizeof(screen.height),SEEK_CUR);
-        else
-        {
-            fread (&screen.width,sizeof(screen.width),1,file);
-            fread (&screen.height,sizeof(screen.height),1,file);
-        }
+        fseek (file,sizeof(screen.width) + sizeof(screen.height),SEEK_CUR);
 
         fread (&screen.flags,sizeof(screen.flags),1,file);
 
@@ -1683,20 +1666,9 @@ void CheckParameters(int argc, char *argv[])
             screen.flags |= SC_INPUTGRABBED;
             param_windowed = true;
         }
-        else IFARG("--res")
-        {
-            if (i + 2 >= argc)
-                snprintf (error,sizeof(error),"The res option needs the width and/or the height argument!");
-            else
-            {
-                screen.width = atoi(argv[++i]);
-                screen.height = atoi(argv[++i]);
-                screen.scale = screen.width / 320;
-
-                if ((screen.width % 320) || (screen.height != 200 * screen.scale && screen.height != 240 * screen.scale))
-                    snprintf (error,sizeof(error),"Screen size must be a multiple of 320x200 or 320x240!");
-            }
-        }
+        // --res is gone: the port is fixed at 320x200 in 256 indexed colours,
+        // which is what the original art is stored in and all the target
+        // hardware has.
         else IFARG("--extravbls")
         {
             if (++i >= argc)
