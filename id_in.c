@@ -108,7 +108,28 @@ void IN_GetJoyDelta (int *dx, int *dy)
 #ifndef PICOWOLF
     SDL_JoystickUpdate();   // PicoSDL polls the stick in SDL_PumpEvents()
 #endif
-#ifdef _arch_dreamcast
+#if defined(PICOWOLF)
+    int x,y;
+
+    //
+    // The board can have two sticks - the ADC one and the game pad's thumb
+    // stick - and PicoSDL already merges them, taking whichever is further
+    // from centre and publishing the result as the controller's left stick.
+    // Only the ADC one also reaches the joystick axes, so reading those alone
+    // left the pad's stick doing nothing, the same way reading only the
+    // joystick buttons left its face buttons doing nothing.
+    //
+    if (Controller)
+    {
+        x = SDL_GameControllerGetAxis(Controller,SDL_CONTROLLER_AXIS_LEFTX) >> 8;
+        y = SDL_GameControllerGetAxis(Controller,SDL_CONTROLLER_AXIS_LEFTY) >> 8;
+    }
+    else
+    {
+        x = SDL_JoystickGetAxis(Joystick,0) >> 8;
+        y = SDL_JoystickGetAxis(Joystick,1) >> 8;
+    }
+#elif defined(_arch_dreamcast)
     int x = 0;
     int y = 0;
 #else
@@ -161,8 +182,16 @@ void IN_GetJoyFineDelta (int *dx, int *dy)
     SDL_JoystickUpdate();   // PicoSDL polls the stick in SDL_PumpEvents()
 #endif
 
+#ifdef PICOWOLF
+    // The merged stick, as in IN_GetJoyDelta above.
+    int x = Controller ? SDL_GameControllerGetAxis(Controller,SDL_CONTROLLER_AXIS_LEFTX)
+                       : SDL_JoystickGetAxis(Joystick,0);
+    int y = Controller ? SDL_GameControllerGetAxis(Controller,SDL_CONTROLLER_AXIS_LEFTY)
+                       : SDL_JoystickGetAxis(Joystick,1);
+#else
     int x = SDL_JoystickGetAxis(Joystick,0);
     int y = SDL_JoystickGetAxis(Joystick,1);
+#endif
 
     x = MAX(-128,MIN(x,127));
     y = MAX(-128,MIN(y,127));
