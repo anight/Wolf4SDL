@@ -82,3 +82,6 @@ Makefile.win
 
 # the built binary
 /wolf4sdl
+
+# make records the build configuration here
+/.buildconfig

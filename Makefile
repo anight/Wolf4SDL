@@ -6,6 +6,8 @@ BINARY    ?= wolf4sdl
 PREFIX    ?= /usr/local
 MANPREFIX ?= $(PREFIX)
 
+, := ,
+
 INSTALL         ?= install
 INSTALL_PROGRAM ?= $(INSTALL) -m 555 -s
 INSTALL_MAN     ?= $(INSTALL) -m 444
@@ -32,6 +34,22 @@ CFLAGS += -Wcast-align
 
 ifdef GPL
     CFLAGS += -DUSE_GPL
+endif
+
+#
+# Read the game data out of flash-resident resources instead of the .wl6
+# files.  FLASH_ASSETS is the directory tools/assets/convert.py wrote:
+#
+#   make FLASH_ASSETS=$PWD/../generated
+#
+# The assembler include path is for the .incbin in wolf_blobs.S, whose paths
+# are relative to that directory.
+#
+ifdef FLASH_ASSETS
+    CFLAGS  += -DUSE_FLASH_ASSETS -I$(FLASH_ASSETS)
+    ASFLAGS += -I$(FLASH_ASSETS)
+    SRCS_EXTRA += $(FLASH_ASSETS)/wolf_assets.c
+    SRCS_EXTRA += $(FLASH_ASSETS)/wolf_blobs.S
 endif
 
 
@@ -82,11 +100,37 @@ SRCS += wl_state.c
 SRCS += wl_text.c
 SRCS += wl_utils.c
 
+SRCS += $(SRCS_EXTRA)
+
 DEPS = $(filter %.d, $(SRCS:.c=.d) $(SRCS:.cpp=.d))
-OBJS = $(filter %.o, $(SRCS:.c=.o) $(SRCS:.cpp=.o))
+OBJS = $(filter %.o, $(SRCS:.c=.o) $(SRCS:.cpp=.o) $(SRCS:.S=.o))
+
+#
+# FLASH_ASSETS and GPL change what every object is compiled from, but they are
+# on the command line rather than in any prerequisite, so make cannot see them
+# move: switching either one and rebuilding silently links a mixture.  That
+# reads as the flash path not taking effect at all, because the one file that
+# did change is the one that gets recompiled.
+#
+# So the objects depend on a file holding the current combination, rewritten
+# only when it differs.
+#
+# The rules below introduce targets ahead of `all`, and FORCE would otherwise
+# become the default goal.
+.DEFAULT_GOAL := all
+
+BUILDCONFIG := $(if $(FLASH_ASSETS),flash:$(FLASH_ASSETS),files)$(if $(GPL),+gpl,)
+
+.buildconfig: FORCE
+	$(Q)[ "$$(cat $@ 2>/dev/null)" = "$(BUILDCONFIG)" ] || \
+	    { echo '===> CONFIG $(BUILDCONFIG)'; echo '$(BUILDCONFIG)' > $@; }
+
+FORCE:
+
+$(OBJS): .buildconfig
 
 .SUFFIXES:
-.SUFFIXES: .c .cpp .d .o
+.SUFFIXES: .c .cpp .S .d .o
 
 Q ?= @
 
@@ -112,6 +156,10 @@ $(BINARY): $(OBJS)
 	@echo '===> CXX $<'
 	$(Q)$(CXX) $(CXXFLAGS) -c $< -o $@
 
+.S.o:
+	@echo '===> AS $<'
+	$(Q)$(CC) $(CCFLAGS) $(addprefix -Wa$(,),$(ASFLAGS)) -c $< -o $@
+
 .c.d:
 	@echo '===> DEP $<'
 	$(Q)$(CC) $(CCFLAGS) -MM $< | sed 's#^$(@F:%.d=%.o):#$@ $(@:%.d=%.o):#' > $@
@@ -122,7 +170,7 @@ $(BINARY): $(OBJS)
 
 clean distclean:
 	@echo '===> CLEAN'
-	$(Q)rm -fr $(DEPS) $(OBJS) $(BINARY) $(BINARY).exe
+	$(Q)rm -fr $(DEPS) $(OBJS) $(BINARY) $(BINARY).exe .buildconfig
 
 install: $(BINARY)
 	@echo '===> INSTALL'

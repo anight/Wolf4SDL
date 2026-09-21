@@ -22,6 +22,10 @@ Id Software Caching Manager
 
 #include "wl_def.h"
 
+#ifdef USE_FLASH_ASSETS
+#include "wolf_assets.h"
+#endif
+
 #define THREEBYTEGRSTARTS
 
 #ifdef THREEBYTEGRSTARTS
@@ -394,6 +398,27 @@ void CA_RLEWexpand (word *source, word *dest, int32_t length, word rlewtag)
 ======================
 */
 
+#ifdef USE_FLASH_ASSETS
+
+/*
+= The chunks are already decoded and deplaned in flash, so there is no
+= dictionary to read, no Huffman to run and no chunk to allocate: grsegs[]
+= just points into the blob.  A sparse chunk has no span and stays NULL,
+= which is what the callers already test for.
+*/
+void CAL_SetupGrFile (void)
+{
+    int i;
+
+    for (i = 0; i < NUMCHUNKS; i++)
+        grsegs[i] = wolf_grspans[i].offset < 0 ? NULL
+                  : (byte *)(uintptr_t)(wolf_vgagraph + wolf_grspans[i].offset);
+
+    pictable = (pictabletype *)(uintptr_t)wolf_pictable;
+}
+
+#else
+
 void CAL_SetupGrFile (void)
 {
     int      i;
@@ -492,6 +517,8 @@ void CAL_SetupGrFile (void)
     fclose (file);
 }
 
+#endif  /* USE_FLASH_ASSETS */
+
 
 /*
 ======================
@@ -500,6 +527,31 @@ void CAL_SetupGrFile (void)
 =
 ======================
 */
+
+#ifdef USE_FLASH_ASSETS
+
+/*
+= One level's worth of planes, and the scratch the Carmack pass decompresses
+= into before the RLEW pass reads it.  Static because there is no allocator on
+= the target and because these are the only map buffers the game will ever
+= need: it holds one level at a time.
+=
+= The scratch is sized for a plane that does not compress at all, plus the
+= two-byte length that precedes the RLEW stream.  The largest this data set
+= actually needs is 6,028 bytes.
+*/
+static word MapPlanes[MAPPLANES][MAPAREA];
+static word MapScratch[MAPAREA + 1];
+
+void CAL_SetupMapFile (void)
+{
+    int i;
+
+    for (i = 0; i < MAPPLANES; i++)
+        mapsegs[i] = MapPlanes[i];
+}
+
+#else
 
 void CAL_SetupMapFile (void)
 {
@@ -512,6 +564,8 @@ void CAL_SetupMapFile (void)
         mapsegs[i] = SafeMalloc(MAPAREA * sizeof(*mapsegs[i]));
 }
 
+#endif
+
 
 /*
 ======================
@@ -520,6 +574,25 @@ void CAL_SetupMapFile (void)
 =
 ======================
 */
+
+#ifdef USE_FLASH_ASSETS
+
+/*
+= audiosegs[] is what the sound manager indexes, and the converter already
+= produced it - the AdLib sounds extended, the music given its four-byte
+= length, the digitised entries left out.  So this is the same pointer walk
+= the graphics do.
+*/
+void CAL_SetupAudioFile (void)
+{
+    int chunk;
+
+    for (chunk = 0; chunk < NUMSNDCHUNKS; chunk++)
+        audiosegs[chunk] = wolf_audiospans[chunk].offset < 0 ? NULL
+                         : (byte *)(uintptr_t)(wolf_audiot + wolf_audiospans[chunk].offset);
+}
+
+#else
 
 void CAL_SetupAudioFile (void)
 {
@@ -615,6 +688,8 @@ void CAL_SetupAudioFile (void)
     fclose (file);
 }
 
+#endif  /* USE_FLASH_ASSETS */
+
 
 /*
 ======================
@@ -648,6 +723,12 @@ void CA_Startup (void)
 
 void CA_Shutdown (void)
 {
+#ifdef USE_FLASH_ASSETS
+    //
+    // Nothing here was allocated: every pointer is into flash, or into the
+    // static plane buffers.
+    //
+#else
     int i;
 
     for (i = 0; i < NUMCHUNKS; i++)
@@ -660,6 +741,7 @@ void CA_Shutdown (void)
         SafeFree (audiosegs[i]);
 
     SafeFree (pictable);
+#endif
 }
 
 
@@ -787,6 +869,67 @@ void CA_CacheGrChunks (int32_t *offset, huffnode *hufftable, FILE *grfile)
 ======================
 */
 
+#ifdef USE_FLASH_ASSETS
+
+/*
+= The only thing still decompressed at run time.  Sixty levels decoded would
+= be 1.4 MB; compressed they are 148 KB, so they stay as the file holds them
+= and one level is expanded into MapPlanes when it is loaded.
+*/
+void CA_CacheMap (int mapnum)
+{
+    const wolflevel_t *level;
+    const byte        *src;
+    int32_t            expanded;
+    int                i;
+
+    if ((unsigned)mapnum >= WOLF_NUMLEVELS)
+        Quit ("CA_CacheMap: Tried to load sparse map %d",mapnum);
+
+    level = &wolf_levels[mapnum];
+
+    mapwidth = level->width;
+    mapheight = level->height;
+
+    if (mapwidth != MAPSIZE || mapheight != MAPSIZE)
+        Quit ("CA_CacheMap: Map %d not %u*%u!",mapnum,MAPSIZE,MAPSIZE);
+
+    snprintf (mapname,sizeof(mapname),"%s",level->name);
+
+    for (i = 0; i < MAPPLANES; i++)
+    {
+        if (!level->planes[i].length)
+        {
+            memset (mapsegs[i],0,MAPAREA * sizeof(*mapsegs[i]));
+            continue;
+        }
+
+        src = wolf_gamemaps + level->planes[i].offset;
+
+#ifdef CARMACIZED
+        //
+        // decarmackize into the scratch, then unRLEW out of it.  Both streams
+        // start with their own two byte expanded length.
+        //
+        expanded = ReadShort(src);
+
+        if (expanded > (int32_t)sizeof(MapScratch))
+            Quit ("CA_CacheMap: Map %d plane %d expands to %d, scratch is %zu",
+                  mapnum,i,expanded,sizeof(MapScratch));
+
+        CAL_CarmackExpand ((byte *)(uintptr_t)(src + 2),MapScratch,expanded);
+
+        expanded = MapScratch[0];
+        CA_RLEWexpand (MapScratch + 1,mapsegs[i],expanded,WOLF_RLEWTAG);
+#else
+        expanded = ReadShort(src);
+        CA_RLEWexpand ((word *)(uintptr_t)(src + 2),mapsegs[i],expanded,WOLF_RLEWTAG);
+#endif
+    }
+}
+
+#else
+
 void CA_CacheMap (int mapnum)
 {
     maptype     mapheader;
@@ -890,3 +1033,5 @@ void CA_CacheMap (int mapnum)
 
     fclose (file);
 }
+
+#endif  /* USE_FLASH_ASSETS */

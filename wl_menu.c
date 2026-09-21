@@ -3930,7 +3930,24 @@ CheckForEpisodes (void)
     else
         Quit ("NO WOLFENSTEIN 3-D DATA FILES to be found!");
 #else
-#ifndef SPEAR
+#if defined(USE_FLASH_ASSETS) && !defined(SPEAR)
+    //
+    // There are no data files to look for: one release is compiled in, and
+    // which one it is was settled when the resources were converted.  All six
+    // episodes are there.
+    //
+    snprintf (extension,sizeof(extension),"wl6");
+    NewEmenu[2].active =
+    NewEmenu[4].active =
+    NewEmenu[6].active =
+    NewEmenu[8].active =
+    NewEmenu[10].active =
+    EpisodeSelect[1] =
+    EpisodeSelect[2] =
+    EpisodeSelect[3] =
+    EpisodeSelect[4] =
+    EpisodeSelect[5] = 1;
+#elif !defined(SPEAR)
     if(!stat("vswap.wl6", &statbuf))
     {
         snprintf (extension,sizeof(extension),"wl6");

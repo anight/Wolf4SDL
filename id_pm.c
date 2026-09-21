@@ -2,6 +2,10 @@
 
 #include "wl_def.h"
 
+#ifdef USE_FLASH_ASSETS
+#include "wolf_assets.h"
+#endif
+
 word ChunksInFile;
 word PMSpriteStart;
 word PMSoundStart;
@@ -21,6 +25,64 @@ byte **PMPages;
 =
 ==================
 */
+
+#ifdef USE_FLASH_ASSETS
+
+/*
+=================
+=
+= PM_Startup / PM_Shutdown (flash resources)
+=
+= There is nothing to start up.  tools/assets/convert.py laid the page file
+= out exactly as the loop below would have - the same padding before sprite
+= pages and the sound info page, the same treatment of sparse pages - and put
+= the result in flash along with an offset per page.  So PM_GetPage() indexes
+= that table and the 1.5 MB never enters SRAM at all.
+=
+=================
+*/
+
+void PM_Startup (void)
+{
+    ChunksInFile          = WOLF_NUMPAGES;
+    PMSpriteStart         = WOLF_SPRITESTART;
+    PMSoundStart          = WOLF_SOUNDSTART;
+    PMSoundInfoPagePadded = WOLF_SOUNDINFOPAGEPADDED;
+}
+
+void PM_Shutdown (void)
+{
+}
+
+uint32_t PM_GetPageSize (int page)
+{
+    if ((unsigned)page >= ChunksInFile)
+        Quit ("PM_GetPageSize: Invalid page request: %d",page);
+
+    return (uint32_t)(wolf_pageoffsets[page + 1] - wolf_pageoffsets[page]);
+}
+
+/*
+= The cast drops const.  Every caller reads - the renderer takes wall and
+= sprite columns out of these pages and the mixer takes digitised samples -
+= and on the board the pages are in flash, where a write would be dropped
+= silently.  Making the whole chain const would touch three renderers and the
+= sound manager; this is the one place it is worth saying instead.
+*/
+byte *PM_GetPage (int page)
+{
+    if ((unsigned)page >= ChunksInFile)
+        Quit ("PM_GetPage: Invalid page request: %d",page);
+
+    return (byte *)(uintptr_t)(wolf_vswap + wolf_pageoffsets[page]);
+}
+
+byte *PM_GetPageEnd (void)
+{
+    return (byte *)(uintptr_t)(wolf_vswap + wolf_pageoffsets[WOLF_NUMPAGES]);
+}
+
+#else
 
 void PM_Startup (void)
 {
@@ -227,3 +289,5 @@ byte *PM_GetPageEnd (void)
 {
     return PMPages[ChunksInFile];
 }
+
+#endif  /* USE_FLASH_ASSETS */
