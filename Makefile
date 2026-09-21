@@ -58,6 +58,7 @@ ifndef GPL
     SRCS += mame/fmopl.c
 else
     SRCS += dosbox/dbopl.cpp
+    SRCS += dosbox/dbopl_adapter.cpp
 endif
 SRCS += id_ca.c
 SRCS += id_in.c
