@@ -20,8 +20,11 @@ typedef struct screenstruct
     const char   *title;
 
     SDL_Window   *window;
-    SDL_Renderer *renderer;
-    SDL_Texture  *texture;
+
+    //
+    // surface is the window's own framebuffer and is owned by SDL; buffer is
+    // the 8-bit indexed framebuffer the game draws into.
+    //
     SDL_Surface  *surface,*buffer;
 } screen_t;
 
@@ -32,8 +35,6 @@ enum screenflags
     SC_FADED         = 0x0002,
     SC_FIZZLEIN      = 0x0004,
     SC_INPUTGRABBED  = 0x0008,
-    SC_HWACCEL       = 0x0010,
-    SC_VSYNC         = 0x0020,
 };
 
 
@@ -79,10 +80,9 @@ void VW_SetupVideo (void);
 void VW_Startup (void);
 void VW_Shutdown (void);
 void VW_InitRndMask (void);
-void VW_ClearTexture (void);
+void VW_ClearVideo (void);
 void VW_ChangeDisplay (screen_t *scr);
 void VW_ChangeWindow (screen_t *scr);
-void VW_SetViewport (int width, int height);
 
 void VW_ConvertPalette (byte *srcpal, SDL_Color *destpal, int numColors);
 void VW_FillPalette (int red, int green, int blue);

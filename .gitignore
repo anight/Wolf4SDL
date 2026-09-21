@@ -79,3 +79,6 @@ Makefile.win
 ##############
 /.vscode
 /build
+
+# the built binary
+/wolf4sdl

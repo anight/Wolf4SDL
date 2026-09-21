@@ -116,10 +116,8 @@ boolean param_ignorenumchunks;
 
 void SetupDisplayDefaults (void)
 {
-    int              i,n;
-    uint32_t         flags;
-    SDL_DisplayMode  dm;
-    SDL_RendererInfo ri;
+    uint32_t        flags = 0;
+    SDL_DisplayMode dm;
 
     if (!screen.width)
     {
@@ -137,35 +135,11 @@ void SetupDisplayDefaults (void)
         screen.height = (200 * screen.width) / 320;
     }
 
-    n = SDL_GetNumRenderDrivers();
-
-    if (n < 0)
-        Quit ("Unable to get render drivers: %s\n",SDL_GetError());
-    else if (!n)
-        Quit ("No render drivers available!");
-
     //
-    // look for a renderer with hardware acceleration
-    // a software fallback will be used only as a last resort
+    // There is no renderer to pick, so there are no render drivers to probe
+    // and no vsync to ask for: SDL_UpdateWindowSurface() presents whenever it
+    // is called and the game's own timing decides when that is.
     //
-    for (i = 0; i < n; i++)
-    {
-        flags = 0;
-
-        if (SDL_GetRenderDriverInfo(i,&ri))
-            Quit ("Unable to get render driver info: %s\n",SDL_GetError());
-
-        if (ri.flags & SDL_RENDERER_ACCELERATED)
-        {
-            flags |= SC_HWACCEL;
-
-            if (ri.flags & SDL_RENDERER_PRESENTVSYNC)
-                flags |= SC_VSYNC;
-
-            break;
-        }
-    }
-
     if (!param_windowed)
         flags |= SC_FULLSCREEN | SC_INPUTGRABBED;
 

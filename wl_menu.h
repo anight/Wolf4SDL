@@ -235,7 +235,6 @@ enum menuitems
 
 enum dispitemtype
 {
-    DISP_VSYNC,
 #ifdef NOTYET
     DISP_HWACCEL,
 #endif

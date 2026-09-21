@@ -119,7 +119,6 @@ CP_itemtype SndMenu[] = {
 
 CP_itemtype DispMenu[NUMDISPITEMS] =
 {
-    {1, "Vsync", 0},
 #ifdef NOTYET
     {1, "Hardware Acceleration", 0},
 #endif
@@ -1941,16 +1940,9 @@ int ChangeDisplay (int blank)
 
         switch (which)
         {
-            case DISP_VSYNC:
-                screen.flags ^= SC_VSYNC;
-                SDL_RenderSetVSync (screen.renderer,(screen.flags & SC_VSYNC) != 0);
-                break;
 #ifdef NOTYET
             case DISP_HWACCEL:
                 screen.flags ^= SC_HWACCEL;
-
-                if (!(screen.flags & SC_HWACCEL))
-                    screen.flags &= ~SC_VSYNC;
                 break;
 #endif
             case DISP_FULLSCREEN:
@@ -2022,22 +2014,15 @@ void DrawDisplayMenu (screen_t *scr)
     else
         DispMenu[DISP_APPLY].active = 0;
 
-    if (!(screen.flags & SC_HWACCEL))
-        DispMenu[DISP_VSYNC].active = 0;
-    else
-        DispMenu[DISP_VSYNC].active = 1;
-
     DrawMenu (&DispItems,DispMenu);
 
     x = DISP_X + DispItems.indent - 24;
     y = DISP_Y + 3;
 
-    VW_DrawPic (x,y,selectedpic[(screen.flags & SC_VSYNC) != 0]);
 #ifdef NOTYET
-    y += 13;
     VW_DrawPic (x,y,selectedpic[(screen.flags & SC_HWACCEL) != 0]);
-#endif
     y += 13;
+#endif
     VW_DrawPic (x,y,selectedpic[(screen.flags & SC_FULLSCREEN) != 0]);
 
     VW_MeasurePropString (DispMenu[DISP_RATIO].string,&w,&h);

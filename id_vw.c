@@ -79,15 +79,21 @@ void VW_Startup (void)
     int      w,h;
     uint32_t flags = 0;
 
+    //
+    // The frame is presented through the window's own surface, which is sized
+    // to the window and is invalidated when the window changes size.  So the
+    // window is not resizable, and fullscreen asks for a mode of the game's
+    // own size rather than SDL_WINDOW_FULLSCREEN_DESKTOP, which would hand
+    // back a desktop-sized surface for the game to draw a corner of.
+    //
     if (screen.flags & SC_FULLSCREEN)
-        flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+        flags |= SDL_WINDOW_FULLSCREEN;
     else
     {
         if (screen.flags & SC_INPUTGRABBED)
             flags |= SDL_WINDOW_INPUT_GRABBED;
     }
 
-    flags |= SDL_WINDOW_RESIZABLE;
     x = SDL_WINDOWPOS_CENTERED;
     y = SDL_WINDOWPOS_CENTERED;
     w = screen.width;
@@ -110,20 +116,19 @@ void VW_Startup (void)
 /*
 ===================
 =
-= VW_ClearTexture
+= VW_ClearVideo
 =
-= Deallocate the rendering texture and its
-= associated surfaces
+= Deallocate what VW_SetupVideo allocated
 =
 ===================
 */
 
-void VW_ClearTexture (void)
+void VW_ClearVideo (void)
 {
-    SDL_DestroyTexture (screen.texture);
-    screen.texture = NULL;
-
-    SDL_FreeSurface (screen.surface);
+    //
+    // screen.surface is the window's own framebuffer.  SDL owns it and frees
+    // it with the window, so it is dropped here rather than freed.
+    //
     screen.surface = NULL;
 
     SDL_FreeSurface (screen.buffer);
@@ -145,10 +150,7 @@ void VW_ClearTexture (void)
 
 void VW_Shutdown (void)
 {
-    VW_ClearTexture ();
-
-    SDL_DestroyRenderer (screen.renderer);
-    screen.renderer = NULL;
+    VW_ClearVideo ();
 
     SDL_DestroyWindow (screen.window);
     screen.window = NULL;
@@ -165,47 +167,23 @@ void VW_Shutdown (void)
 
 void VW_SetupVideo (void)
 {
-    int      i;
-    int      w,h;
-    uint32_t a,r,g,b;
-    uint32_t flags = 0;
+    int i;
+    int w,h;
 
     w = screen.width;
     h = screen.height;
 
-    if (!screen.renderer)
-    {
-        if (!(screen.flags & SC_HWACCEL))
-            flags |= SDL_RENDERER_SOFTWARE;
-        else
-        {
-            flags |= SDL_RENDERER_ACCELERATED;
-
-            if (screen.flags & SC_VSYNC)
-                flags |= SDL_RENDERER_PRESENTVSYNC;
-        }
-
-        screen.renderer = SDL_CreateRenderer(screen.window,-1,flags);
-
-        if (!screen.renderer)
-            Quit ("Unable to create renderer: %s\n",SDL_GetError());
-
-        VW_SetViewport (w,h);
-
-        SDL_RenderSetVSync (screen.renderer,(screen.flags & SC_VSYNC) != 0);
-    }
-
-    SDL_PixelFormatEnumToMasks (SDL_PIXELFORMAT_ARGB8888,&screen.bits,&r,&g,&b,&a);
-
-    screen.surface = SDL_CreateRGBSurface(0,w,h,screen.bits,r,g,b,a);
+    //
+    // The window's own framebuffer is the presentation target: no renderer, no
+    // texture, no format negotiation.  The platform states the depth it will
+    // give us and screen.bits reports it rather than choosing it.
+    //
+    screen.surface = SDL_GetWindowSurface(screen.window);
 
     if (!screen.surface)
-        Quit ("Unable to create %dx%dx%d surface: %s\n",w,h,screen.bits,SDL_GetError());
+        Quit ("Unable to get the window surface: %s\n",SDL_GetError());
 
-    screen.texture = SDL_CreateTexture(screen.renderer,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STATIC,w,h);
-
-    if (!screen.texture)
-        Quit ("Unable to create texture: %s\n",SDL_GetError());
+    screen.bits = screen.surface->format->BitsPerPixel;
 
     //
     // create 8 bit screen buffer for drawing
@@ -257,11 +235,23 @@ void VW_ChangeDisplay (screen_t *scr)
         screen.height = scr->height;
 
         Shutdown3DRenderer ();
-        VW_ClearTexture ();
+        VW_ClearVideo ();
 
         VW_SetupVideo ();
         VW_InitRndMask ();
         Init3DRenderer ();
+    }
+    else
+    {
+        //
+        // Nothing to re-allocate, but going to or from fullscreen resized the
+        // window, and the window's surface does not survive that: SDL frees it
+        // and builds another.  The pointer has to be taken again.
+        //
+        screen.surface = SDL_GetWindowSurface(screen.window);
+
+        if (!screen.surface)
+            Quit ("Unable to get the window surface: %s\n",SDL_GetError());
     }
 }
 
@@ -321,69 +311,6 @@ void VW_ChangeWindow (screen_t *scr)
         SDL_SetWindowSize (screen.window,scr->width,scr->height);
         SDL_SetWindowPosition (screen.window,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
     }
-
-    VW_SetViewport (scr->width,scr->height);
-}
-
-
-/*
-=================
-=
-= VW_SetViewport
-=
-= If the window resolution is larger than the desktop resolution,
-= the viewport dimensions are adjusted to avoid going off the screen
-=
-=================
-*/
-
-void VW_SetViewport (int width, int height)
-{
-    int             vpwidth,vpheight;
-    SDL_Rect        viewport;
-    SDL_DisplayMode dm;
-
-    SDL_RenderSetLogicalSize (screen.renderer,width,height);
-
-    if (!(screen.flags & SC_FULLSCREEN))
-    {
-        if (SDL_GetDesktopDisplayMode(0,&dm))
-            Quit ("Unable to get desktop display mode: %s\n",SDL_GetError());
-
-        vpwidth = dm.w;
-        vpheight = dm.h;
-
-        if (width > vpwidth || height > vpheight)
-        {
-            if (width > vpwidth)
-            {
-                viewport.x = (width - vpwidth) / 2;
-                viewport.w = vpwidth;
-            }
-            else
-            {
-                viewport.x = 0;
-                viewport.w = width;
-            }
-
-            if (height > vpheight)
-            {
-                viewport.y = (height - vpheight) / 2;
-                viewport.h = vpheight;
-            }
-            else
-            {
-                viewport.y = 0;
-                viewport.h = height;
-            }
-
-            SDL_RenderSetViewport (screen.renderer,&viewport);
-
-            return;
-        }
-    }
-
-    SDL_RenderSetViewport (screen.renderer,NULL);
 }
 
 
@@ -474,13 +401,24 @@ void VW_SetPalette (SDL_Color *palette, bool forceupdate)
 {
     memcpy(curpal, palette, sizeof(SDL_Color) * 256);
 
-    if (screen.bits == 8)
-        SDL_SetPaletteColors(screen.surface->format->palette, palette, 0, 256);
-    else
+    SDL_SetPaletteColors(screen.buffer->format->palette, palette, 0, 256);
+
+    if (screen.surface->format->palette)
     {
-        SDL_SetPaletteColors(screen.buffer->format->palette, palette, 0, 256);
+        //
+        // An indexed display is the CLUT itself, so the frame already on it
+        // stays valid and a fade costs 256 colour writes rather than a whole
+        // screen of conversion.  This is the path the board takes.
+        //
+        SDL_SetPaletteColors(screen.surface->format->palette, palette, 0, 256);
+
         if (forceupdate)
-            VW_UpdateScreen ();
+            SDL_UpdateWindowSurface (screen.window);
+    }
+    else if (forceupdate)
+    {
+        // Otherwise the frame must be converted again through the new palette.
+        VW_UpdateScreen ();
     }
 }
 
@@ -1013,10 +951,7 @@ void VW_SegToScreen (byte *source, int srcwidth, int srcx, int srcy,
 void VW_UpdateScreen (void)
 {
 	SDL_BlitSurface (screen.buffer,NULL,screen.surface,NULL);
-
-    SDL_UpdateTexture (screen.texture,NULL,screen.surface->pixels,screen.surface->pitch);
-    SDL_RenderCopy (screen.renderer,screen.texture,NULL,NULL);
-    SDL_RenderPresent (screen.renderer);
+	SDL_UpdateWindowSurface (screen.window);
 }
 
 
@@ -1165,9 +1100,7 @@ boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolea
 
         VW_UnlockSurface (screen.surface);
 
-        SDL_UpdateTexture (screen.texture,NULL,screen.surface->pixels,screen.surface->pitch);
-        SDL_RenderCopy (screen.renderer,screen.texture,NULL,NULL);
-        SDL_RenderPresent (screen.renderer);
+        SDL_UpdateWindowSurface (screen.window);
 
         frame++;
         Delay(frame - GetTimeCount());        // don't go too fast
