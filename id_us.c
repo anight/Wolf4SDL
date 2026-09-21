@@ -113,11 +113,27 @@ US_Shutdown(void)
 //		supported.
 //
 ///////////////////////////////////////////////////////////////////////////
+//
+// The copy exists so the word wrap can write a NUL into the string and put
+// the character back afterwards; it is never kept.  It used to be a strdup(),
+// which put a malloc and a free in the path of every string the game draws -
+// menus, the status bar, the intermission - on a target whose whole heap is a
+// few kilobytes.  A fixed buffer costs that space once instead.
+//
+// Longer than anything either caller is given: the menu strings and the
+// numbers formatted into them are tens of characters, not hundreds.
+//
+#define US_PRINTBUFSIZE 256
+
+static char USPrintBuf[US_PRINTBUFSIZE];
+
 void
 US_Print(const char *sorg)
 {
 	char c;
-	char *sstart = strdup(sorg);
+	char *sstart = USPrintBuf;
+
+	snprintf (USPrintBuf,sizeof(USPrintBuf),"%s",sorg);
 	char *s = sstart;
 	char *se;
 	word w,h;
@@ -147,7 +163,6 @@ US_Print(const char *sorg)
 			PrintX += w;
 	}
 
-	SafeFree (sstart);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -246,7 +261,9 @@ void
 US_CPrint(const char *sorg)
 {
 	char	c;
-	char *sstart = strdup(sorg);
+	char *sstart = USPrintBuf;
+
+	snprintf (USPrintBuf,sizeof(USPrintBuf),"%s",sorg);
 	char *s = sstart;
 	char *se;
 
@@ -267,7 +284,6 @@ US_CPrint(const char *sorg)
 		}
 	}
 
-	SafeFree (sstart);
 }
 
 ///////////////////////////////////////////////////////////////////////////

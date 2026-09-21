@@ -526,7 +526,20 @@ SDL_SetupDigi(void)
     word *soundInfoPage = (word *) (void *) PM_GetPage(ChunksInFile-1);
     NumDigi = (word) PM_GetPageSize(ChunksInFile - 1) / 4;
 
-    DigiList = SafeMalloc(NumDigi * sizeof(*DigiList));
+    //
+    // One entry per digitised sound.  The count comes from VSWAP's last page
+    // and is a property of the data set, so the array is sized for the most
+    // this build can index rather than allocated for what it found.
+    //
+    {
+        static digiinfo DigiListBuf[STARTMUSIC - STARTDIGISOUNDS];
+
+        if (NumDigi > lengthof(DigiListBuf))
+            Quit ("SDL_SetupDigi: %d sounds is more than the %d this build has room for",
+                  NumDigi,(int)lengthof(DigiListBuf));
+
+        DigiList = DigiListBuf;
+    }
     int i,page;
     for(i = 0; i < NumDigi; i++)
     {
@@ -1047,7 +1060,7 @@ SD_Shutdown(void)
         DigiLength[i] = 0;
     }
 
-    SafeFree (DigiList);
+    DigiList = NULL;                // static storage; nothing to give back
 
     SD_Started = false;
 }

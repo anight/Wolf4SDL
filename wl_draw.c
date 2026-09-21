@@ -98,12 +98,27 @@ word    horizwall[MAXWALLTILES],vertwall[MAXWALLTILES];
 ========================
 */
 
+//
+// One column of each per screen column, and one span per screen row pair.
+// Static rather than allocated: the resolution is fixed at 320x200, so these
+// sizes are constants, and the board has no allocator worth the name.
+//
+static short   PixelAngleBuf[SCREENWIDTH];
+static int16_t WallHeightBuf[SCREENWIDTH];
+#if defined(USE_FLOORCEILINGTEX) || defined(USE_CLOUDSKY)
+static int16_t SpanStartBuf[SCREENHEIGHT / 2];
+#endif
+
 void Init3DRenderer (void)
 {
-    pixelangle = SafeMalloc(screen.width * sizeof(*pixelangle));
-    wallheight = SafeMalloc(screen.width * sizeof(*wallheight));
+    if (screen.width > SCREENWIDTH || screen.height > SCREENHEIGHT)
+        Quit ("Init3DRenderer: %dx%d is larger than the %dx%d these tables cover",
+              screen.width,screen.height,SCREENWIDTH,SCREENHEIGHT);
+
+    pixelangle = PixelAngleBuf;
+    wallheight = WallHeightBuf;
 #if defined(USE_FLOORCEILINGTEX) || defined(USE_CLOUDSKY)
-    spanstart = SafeMalloc((screen.height >> 1) * sizeof(*spanstart));
+    spanstart = SpanStartBuf;
 #endif
     SetupWalls ();
     BuildTables ();
@@ -122,10 +137,11 @@ void Init3DRenderer (void)
 
 void Shutdown3DRenderer (void)
 {
-    SafeFree (pixelangle);
-    SafeFree (wallheight);
+    // Static storage; there is nothing to give back.
+    pixelangle = NULL;
+    wallheight = NULL;
 #if defined(USE_FLOORCEILINGTEX) || defined(USE_CLOUDSKY)
-    SafeFree (spanstart);
+    spanstart = NULL;
 #endif
 }
 

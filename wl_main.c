@@ -1652,7 +1652,7 @@ void CheckParameters(int argc, char *argv[])
 
     int    i;
     size_t len;
-    char   error[256],*helpstr;
+    char   error[256];
 
     error[0] = '\0';
 
@@ -1777,14 +1777,16 @@ void CheckParameters(int argc, char *argv[])
 
     if (*error)
     {
-        len = strlen(header) + strlen(error) + 1;
-        helpstr = SafeMalloc(len);
+        //
+        // A fixed buffer: this runs once, on a bad argument, and the next
+        // thing it does is stop.  Allocating to say so was the one heap use
+        // that could itself fail for want of heap.
+        //
+        static char helpbuf[sizeof(error) + 512];
 
-        snprintf (helpstr,len,"%s%s",header,error);
+        snprintf (helpbuf,sizeof(helpbuf),"%s%s",header,error);
 
-        Error (helpstr);
-
-        SafeFree (helpstr);
+        Error (helpbuf);
 
         exit(1);
     }

@@ -50,8 +50,8 @@
 //
 screen_t screen =
 {
-    .width  = 320,
-    .height = 200,
+    .width  = SCREENWIDTH,
+    .height = SCREENHEIGHT,
     .bits   = 8,
     .scale  = 1,
 };
@@ -104,7 +104,7 @@ CASSERT(lengthof(gamepal) == 256)
 = Static because PicoSDL allocates no pixels and its arena is 16 KB against
 = the 62,500 this needs.
 */
-#define PICOWOLF_CANVAS (320 * 200)
+#define PICOWOLF_CANVAS (SCREENWIDTH * SCREENHEIGHT)
 
 static Uint8 PanelCanvas[PICOWOLF_CANVAS];
 
@@ -196,7 +196,7 @@ void VW_ClearVideo (void)
     screen.buffer = NULL;
     screen.surface = NULL;
 
-    SafeFree (ylookup);
+    ylookup = NULL;                 // static storage; nothing to give back
 }
 
 
@@ -264,7 +264,19 @@ void VW_SetupVideo (void)
 
     VW_SetPalette (gamepal,false);
 
-    ylookup = SafeMalloc(screen.height * sizeof(*ylookup));
+    //
+    // Row offsets, one per screen row.  Static for the same reason as the
+    // renderer's tables: the resolution is a constant.
+    //
+    {
+        static uint32_t YLookupBuf[SCREENHEIGHT];
+
+        if (screen.height > SCREENHEIGHT)
+            Quit ("VW_SetupVideo: %d rows is more than the %d ylookup covers",
+                  screen.height,SCREENHEIGHT);
+
+        ylookup = YLookupBuf;
+    }
 
     for (i = 0; i < screen.height; i++)
         ylookup[i] = i * screen.buffer->pitch;

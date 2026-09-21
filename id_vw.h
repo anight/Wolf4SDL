@@ -8,6 +8,15 @@
 #define BLACK			0
 
 
+//
+// The port is fixed at VGA mode 13h, and this is where that is said in a form
+// an array can be sized by.  id_vw.c initialises screen.width and .height to
+// these, and everything that allocated per-column or per-row storage is a
+// static array of this size instead.
+//
+#define SCREENWIDTH     320
+#define SCREENHEIGHT    200
+
 typedef struct screenstruct
 {
     int          width,height;

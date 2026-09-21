@@ -989,6 +989,21 @@ void ShowStatusBar (void)
 ==================
 */
 
+//
+// One demo at a time, whether it is being played or recorded - PlayDemo runs
+// the title loop and RecordDemo is entered from the debug menu, never both.
+//
+// It used to be allocated, and in the DEMOSEXTERN build - which is this one -
+// the patched copy was never freed: the free is on the other side of that
+// #ifdef, because there it releases a file buffer rather than a graphics
+// chunk.  So the title loop leaked up to 13 KB per demo, for ever, through
+// four demos in rotation.  On a desktop that is a leak.  On a board whose
+// whole heap is a few kilobytes it is a Quit() before the title screen.
+//
+#define MAXDEMOSIZE     16384
+
+static int8_t DemoBuffer[MAXDEMOSIZE];
+
 int8_t *PatchDemoChunk (int8_t *chunk)
 {
     int    level,length,newlength;
@@ -1001,7 +1016,11 @@ int8_t *PatchDemoChunk (int8_t *chunk)
 
     newlength = 8 + length + ((length / 3) * 4);
 
-    newdemo = SafeMalloc(newlength);
+    if (newlength > (int32_t)sizeof(DemoBuffer))
+        Quit ("PatchDemoChunk: demo expands to %d, the buffer is %d",
+              newlength,(int)sizeof(DemoBuffer));
+
+    newdemo = DemoBuffer;
     work = newdemo + 8;     // leave space for header
 
     while (length)
@@ -1064,7 +1083,6 @@ int8_t *PatchDemoChunk (int8_t *chunk)
 char    demoname[13] = "DEMO?.";
 
 #ifndef REMDEBUG
-#define MAXDEMOSIZE     16384
 
 /*
 ==================
@@ -1157,7 +1175,7 @@ void RecordDemo (void)
     gamestate.mapon = level;
 #endif
 
-    demobuffer = SafeMalloc(MAXDEMOSIZE);
+    demobuffer = DemoBuffer;
     demoptr = demobuffer;
     lastdemoptr = &demoptr[MAXDEMOSIZE - 7];
 
@@ -1190,7 +1208,7 @@ void RecordDemo (void)
 
     FinishDemoRecord (demobuffer);
 
-    SafeFree (demobuffer);
+    demobuffer = NULL;              // static storage; nothing to give back
 
     demoptr = NULL;
 }
