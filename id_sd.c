@@ -28,7 +28,7 @@
 //
 
 #include "wl_def.h"
-#include <SDL_mixer.h>
+#include "sd_mixer.h"
 #if defined(GP2X_940)
 #include "gp2x/fmopl.h"
 #else
@@ -41,30 +41,37 @@
 
 #define ORIGSAMPLERATE 7042
 
+//
+// Where each digitised sound lives.  Pointers into the page file, which
+// PM_Startup() makes resident for the life of the program and never moves, so
+// a voice can hold one for as long as it plays.
+//
+static const byte *DigiSound[STARTMUSIC - STARTDIGISOUNDS];
+static int         DigiLength[STARTMUSIC - STARTDIGISOUNDS];
+
+//
+// A voice.  `pos` and `step` are 32.32 source frames; `left` and `right` are
+// 0..255 the way Mix_SetPanning took them.  `started` orders the pool for
+// stealing: the lowest wins, which is the oldest.
+//
 typedef struct
 {
-	char RIFF[4];
-	longword filelenminus8;
-	char WAVE[4];
-	char fmt_[4];
-	longword formatlen;
-	word val0x0001;
-	word channels;
-	longword samplerate;
-	longword bytespersec;
-	word bytespersample;
-	word bitspersample;
-} headchunk;
+    const byte *samples;
+    int         length;
+    uint64_t    pos,step;
+    int         left,right;
+    uint32_t    started;
+    boolean     active;
+} sdvoice_t;
 
-typedef struct
-{
-	char chunkid[4];
-	longword chunklength;
-} wavechunk;
+static sdvoice_t Voices[SD_CHANNELS];
+static uint32_t  VoiceSeq;
 
-static Mix_Chunk *SoundChunks[ STARTMUSIC - STARTDIGISOUNDS];
+void SD_ChannelFinished(int channel);
 
-globalsoundpos channelSoundPos[MIX_CHANNELS];
+static SDL_AudioSpec AudioSpec;
+
+globalsoundpos channelSoundPos[SD_CHANNELS];
 
 //      Global variables
         boolean         AdLibPresent,
@@ -291,7 +298,7 @@ SD_StopDigitized(void)
             SDL_PCStopSound();
             break;
         case sds_SoundBlaster:
-            Mix_HaltChannel(-1);
+            SD_StopAllVoices();
             break;
 
         default:
@@ -299,15 +306,85 @@ SD_StopDigitized(void)
     }
 }
 
+//
+// Channels 0 and 1 are spoken for - the player's weapon and the boss's, named
+// by DigiChannel[] out of wolfdigimap - and the rest are a pool.  A free one
+// if there is one, otherwise the oldest, which is what Mix_GroupAvailable()
+// then Mix_GroupOldest() did.
+//
 int SD_GetChannelForDigi(int which)
 {
-    if(DigiChannel[which] != -1) return DigiChannel[which];
+    int i,oldest;
 
-    int channel = Mix_GroupAvailable(1);
-    if(channel == -1) channel = Mix_GroupOldest(1);
-    if(channel == -1)           // All sounds stopped in the meantime?
-        return Mix_GroupAvailable(1);
-    return channel;
+    if(DigiChannel[which] != -1)
+        return DigiChannel[which];
+
+    for(i = SD_RESERVEDCHANNELS; i < SD_CHANNELS; i++)
+        if(!Voices[i].active)
+            return i;
+
+    oldest = SD_RESERVEDCHANNELS;
+
+    for(i = SD_RESERVEDCHANNELS + 1; i < SD_CHANNELS; i++)
+        if(Voices[i].started < Voices[oldest].started)
+            oldest = i;
+
+    return oldest;
+}
+
+//
+// Silence every voice.  Called from the game thread, so it takes the lock.
+//
+void SD_StopAllVoices(void)
+{
+    int i;
+
+    SDL_LockAudio();
+
+    for(i = 0; i < SD_CHANNELS; i++)
+    {
+        Voices[i].active = false;
+        Voices[i].samples = NULL;
+        channelSoundPos[i].valid = 0;
+    }
+
+    SDL_UnlockAudio();
+}
+
+//
+// The mixer proper: every active voice, resampled, panned and summed into the
+// block.  Runs on the audio thread and allocates nothing.
+//
+static void SD_MixVoices(int16_t *stream, int frames)
+{
+    int i,f;
+
+    for(i = 0; i < SD_CHANNELS; i++)
+    {
+        sdvoice_t *v = &Voices[i];
+
+        if(!v->active)
+            continue;
+
+        for(f = 0; f < frames; f++)
+        {
+            int sample;
+
+            if((int64_t)(v->pos >> 32) >= v->length)
+            {
+                v->active = false;
+                v->samples = NULL;
+                SD_ChannelFinished(i);
+                break;
+            }
+
+            sample = SD_ResampleSample(v->samples,v->length,v->pos);
+            v->pos += v->step;
+
+            SD_MixSample(&stream[f * 2],    (sample * v->left)  >> 8);
+            SD_MixSample(&stream[f * 2 + 1],(sample * v->right) >> 8);
+        }
+    }
 }
 
 void SD_SetPosition(int channel, int leftpos, int rightpos)
@@ -319,8 +396,15 @@ void SD_SetPosition(int channel, int leftpos, int rightpos)
     switch (DigiMode)
     {
         case sds_SoundBlaster:
-//            SDL_PositionSBP(leftpos,rightpos);
-            Mix_SetPanning(channel,255 - (leftpos * 28),255 - (rightpos * 28));
+            //
+            // leftpos/rightpos are 0..15 with 0 the loudest, which is the
+            // conversion Mix_SetPanning() was handed.
+            //
+            if(channel >= 0 && channel < SD_CHANNELS)
+            {
+                Voices[channel].left  = 255 - (leftpos * 28);
+                Voices[channel].right = 255 - (rightpos * 28);
+            }
             break;
 
         default:
@@ -328,68 +412,29 @@ void SD_SetPosition(int channel, int leftpos, int rightpos)
     }
 }
 
-Sint16 GetSample(float csample, byte *samples, int size)
-{
-    float s0=0, s1=0, s2=0;
-    int cursample = (int) csample;
-    float sf = csample - (float) cursample;
-
-    if(cursample-1 >= 0) s0 = (float) (samples[cursample-1] - 128);
-    s1 = (float) (samples[cursample] - 128);
-    if(cursample+1 < size) s2 = (float) (samples[cursample+1] - 128);
-
-    float val = s0*sf*(sf-1)/2 - s1*(sf*sf-1) + s2*(sf+1)*sf/2;
-    int32_t intval = (int32_t) (val * 256);
-    if(intval < -32768) intval = -32768;
-    else if(intval > 32767) intval = 32767;
-    return (Sint16) intval;
-}
-
+//
+// Note where a digitised sound is, and check it is inside the page file.  That
+// is the whole of preparing one now: it is played from where it lies, at the
+// rate it was sampled at, and the mixer does the resampling a frame at a time.
+//
 void SD_PrepareSound(int which)
 {
-    int i;
+    int         page,size;
+    const byte *samples;
 
     if(DigiList == NULL)
         Quit("SD_PrepareSound(%i): DigiList not initialized!\n", which);
 
-    int page = DigiList[which].startpage;
-    int size = DigiList[which].length;
+    page = DigiList[which].startpage;
+    size = DigiList[which].length;
 
-    byte *origsamples = PM_GetSoundPage(page);
-    if(origsamples + size >= PM_GetPageEnd())
+    samples = PM_GetSoundPage(page);
+
+    if(samples + size >= PM_GetPageEnd())
         Quit("SD_PrepareSound(%i): Sound reaches out of page file!\n", which);
 
-    int destsamples = (int) ((float) size * (float) param_samplerate
-        / (float) ORIGSAMPLERATE);
-
-    byte *wavebuffer = SafeMalloc(sizeof(headchunk) + sizeof(wavechunk)
-        + destsamples * 2);     // dest are 16-bit samples
-
-    headchunk head = {{'R','I','F','F'}, 0, {'W','A','V','E'},
-        {'f','m','t',' '}, 0x10, 0x0001, 1, (longword) param_samplerate, (longword) (param_samplerate*2), 2, 16};
-    wavechunk dhead = {{'d', 'a', 't', 'a'}, (longword) (destsamples*2)};
-    head.filelenminus8 = sizeof(head) + destsamples*2;  // (sizeof(dhead)-8 = 0)
-    memcpy(wavebuffer, &head, sizeof(head));
-    memcpy(wavebuffer+sizeof(head), &dhead, sizeof(dhead));
-
-    // alignment is correct, as wavebuffer comes from malloc
-    // and sizeof(headchunk) % 4 == 0 and sizeof(wavechunk) % 4 == 0
-    Sint16 *newsamples = (Sint16 *)(void *) (wavebuffer + sizeof(headchunk)
-        + sizeof(wavechunk));
-    float cursample = 0.F;
-    float samplestep = (float) ORIGSAMPLERATE / (float) param_samplerate;
-    for(i=0; i<destsamples; i++, cursample+=samplestep)
-    {
-        newsamples[i] = GetSample((float)size * (float)i / (float)destsamples,
-            origsamples, size);
-    }
-
-    SDL_RWops* temp = SDL_RWFromMem(wavebuffer,
-        sizeof(headchunk) + sizeof(wavechunk) + destsamples * 2);
-
-    SoundChunks[which] = Mix_LoadWAV_RW(temp, 1);
-
-    SafeFree (wavebuffer);
+    DigiSound[which]  = samples;
+    DigiLength[which] = size;
 }
 
 int SD_PlayDigitized(word which,int leftpos,int rightpos)
@@ -400,23 +445,43 @@ int SD_PlayDigitized(word which,int leftpos,int rightpos)
     if (which >= NumDigi)
         Quit("SD_PlayDigitized: bad sound number %i", which);
 
-    int channel = SD_GetChannelForDigi(which);
-    SD_SetPosition(channel, leftpos,rightpos);
+    int        channel = SD_GetChannelForDigi(which);
+    uint64_t   step = SD_ResampleStep(SD_DIGIRATE,(unsigned) AudioSpec.freq);
+    sdvoice_t *v;
+
+    if(DigiSound[which] == NULL)
+    {
+        printf("DigiSound[%i] is NULL!\n", which);
+        return 0;
+    }
+
+    //
+    // No device, no rate, no step - and a voice whose cursor never advances
+    // would hold its first sample for ever rather than ending.
+    //
+    if(!step)
+        return 0;
 
     DigiPlaying = true;
 
-    Mix_Chunk *sample = SoundChunks[which];
-    if(sample == NULL)
-    {
-        printf("SoundChunks[%i] is NULL!\n", which);
-        return 0;
-    }
+    //
+    // The audio thread walks this voice, so the whole of starting it happens
+    // under the lock rather than leaving a half-set voice to be mixed.
+    //
+    SDL_LockAudio();
 
-    if(Mix_PlayChannel(channel, sample, 0) == -1)
-    {
-        printf("Unable to play sound: %s\n", Mix_GetError());
-        return 0;
-    }
+    v = &Voices[channel];
+
+    v->samples = DigiSound[which];
+    v->length  = DigiLength[which];
+    v->pos     = 0;
+    v->step    = step;
+    v->started = ++VoiceSeq;
+    v->active  = true;
+
+    SDL_UnlockAudio();
+
+    SD_SetPosition(channel, leftpos,rightpos);
 
     return channel;
 }
@@ -733,6 +798,38 @@ longword curAlLengthLeft = 0;
 int soundTimeCounter = 5;
 int samplesPerMusicTick;
 
+//
+// Scratch for one piece of OPL output.  The emulator writes its block, and it
+// is added to the stream rather than replacing it, because with a single
+// callback the music shares the block with the digitised voices and the
+// speaker.  Under Mix_HookMusic this function owned the stream and could write
+// it; nothing owns it now.
+//
+// 512 frames because YM3812UpdateOne() clamps to that, and the pieces asked
+// for here are samplesPerMusicTick - param_samplerate/700, so 63 at 44.1 kHz.
+//
+#define SD_OPLSCRATCHFRAMES 512
+
+static int16_t OplScratch[SD_OPLSCRATCHFRAMES * 2];
+
+static void SDL_OPLAdd(int16_t *stream, int frames)
+{
+    int i;
+
+    while(frames > 0)
+    {
+        int piece = frames > SD_OPLSCRATCHFRAMES ? SD_OPLSCRATCHFRAMES : frames;
+
+        YM3812UpdateOne(oplChip, OplScratch, piece);
+
+        for(i = 0; i < piece * 2; i++)
+            SD_MixSample(&stream[i],OplScratch[i]);
+
+        stream += piece * 2;
+        frames -= piece;
+    }
+}
+
 void SDL_IMFMusicPlayer(void *udata, Uint8 *stream, int len)
 {
     int stereolen = len>>1;
@@ -745,13 +842,13 @@ void SDL_IMFMusicPlayer(void *udata, Uint8 *stream, int len)
         {
             if(numreadysamples<sampleslen)
             {
-                YM3812UpdateOne(oplChip, stream16, numreadysamples);
+                SDL_OPLAdd(stream16, numreadysamples);
                 stream16 += numreadysamples*2;
                 sampleslen -= numreadysamples;
             }
             else
             {
-                YM3812UpdateOne(oplChip, stream16, sampleslen);
+                SDL_OPLAdd(stream16, sampleslen);
                 numreadysamples -= sampleslen;
                 return;
             }
@@ -814,6 +911,28 @@ void SDL_IMFMusicPlayer(void *udata, Uint8 *stream, int len)
 //              Detects all additional sound hardware and installs my ISR
 //
 ///////////////////////////////////////////////////////////////////////////
+//
+// The one audio callback.
+//
+// SDL_mixer built this out of three pieces that ran in a fixed order - a music
+// hook that wrote the block, the channel mixer that added to it, and a post-mix
+// hook that added again.  The order is kept; what has gone is the library.
+//
+static void SD_AudioCallback(void *udata, Uint8 *stream, int len)
+{
+    int16_t *stream16 = (int16_t *) (void *) stream;
+    int      frames = len / (2 * (int) sizeof(int16_t));
+
+    (void)udata;
+
+    memset(stream,0,len);
+
+    SD_MixVoices(stream16, frames);
+    SDL_IMFMusicPlayer(NULL, stream, len);
+    SDL_PCMixCallback(NULL, stream, len);
+}
+
+
 void
 SD_Startup(void)
 {
@@ -837,17 +956,28 @@ SD_Startup(void)
         chunksize = 1 << (int)log2(param_audiobuffer / (44100 / param_samplerate));
     }
 
-    if (Mix_OpenAudioDevice(param_samplerate,AUDIO_S16,2,chunksize,NULL,SDL_AUDIO_ALLOW_FREQUENCY_CHANGE))
+    memset (&AudioSpec,0,sizeof(AudioSpec));
+
+    AudioSpec.freq     = param_samplerate;
+    AudioSpec.format   = AUDIO_S16SYS;
+    AudioSpec.channels = 2;
+    AudioSpec.samples  = chunksize;
+    AudioSpec.callback = SD_AudioCallback;
+
+    //
+    // Take the obtained spec, not the desired one.  A backend is free to hand
+    // back a different rate or block size - PicoSDL fixes the block size
+    // outright - and everything downstream derives from it: the resampling
+    // step for every voice, and samplesPerMusicTick below.
+    //
+    if (SDL_OpenAudio(&AudioSpec,&AudioSpec) < 0)
     {
-        snprintf (str,sizeof(str),"Unable to open audio device: %s\n", Mix_GetError());
+        snprintf (str,sizeof(str),"Unable to open audio device: %s\n", SDL_GetError());
         Error (str);
         return;
     }
 
-    Mix_QuerySpec (&param_samplerate,NULL,NULL);
-
-    Mix_ReserveChannels(2);  // reserve player and boss weapon channels
-    Mix_GroupChannels(2, MIX_CHANNELS-1, 1); // group remaining channels
+    param_samplerate = AudioSpec.freq;
 
     // Init music
 
@@ -864,15 +994,12 @@ SD_Startup(void)
     YM3812Write(oplChip,1,0x20); // Set WSE=1
 //    YM3812Write(0,8,0); // Set CSM=0 & SEL=0		 // already set in for statement
 
-    Mix_HookMusic(SDL_IMFMusicPlayer, 0);
-    Mix_ChannelFinished(SD_ChannelFinished);
     AdLibPresent = true;
     SoundBlasterPresent = true;
 
     alTimeCount = 0;
 
-    // Add PC speaker sound mixer
-    Mix_SetPostMix(SDL_PCMixCallback, NULL);
+    SDL_PauseAudio(0);
 
     SD_SetSoundMode(sdm_Off);
     SD_SetMusicMode(smm_Off);
@@ -912,13 +1039,12 @@ SD_Shutdown(void)
     SD_MusicOff();
     SD_StopSound();
 
+    SDL_CloseAudio();
+
     for(i = 0; i < STARTMUSIC - STARTDIGISOUNDS; i++)
     {
-        if (SoundChunks[i])
-        {
-            Mix_FreeChunk (SoundChunks[i]);
-            SoundChunks[i] = NULL;
-        }
+        DigiSound[i] = NULL;
+        DigiLength[i] = 0;
     }
 
     SafeFree (DigiList);

@@ -3,7 +3,6 @@
 #include "wl_def.h"
 #include "wl_cloudsky.h"
 #include "wl_shade.h"
-#include <SDL_mixer.h>
 
 /*
 =============================================================================
@@ -188,7 +187,7 @@ void UpdateSoundLoc(void)
         SD_SetPosition(leftchannel,rightchannel);
     }*/
 
-    for(i = 0; i < MIX_CHANNELS; i++)
+    for(i = 0; i < SD_CHANNELS; i++)
     {
         if(channelSoundPos[i].valid)
         {

@@ -44,11 +44,6 @@ CCFLAGS += -Wsequence-point
 CXXFLAGS += $(CFLAGS)
 
 LDFLAGS += $(LDFLAGS_SDL)
-ifeq ($(SDL_MAJOR_VERSION),1)
-	LDFLAGS += -lSDL_mixer
-else
-	LDFLAGS += -lSDL2_mixer
-endif
 ifneq (,$(findstring MINGW,$(shell uname -s)))
 LDFLAGS += -static-libgcc
 endif

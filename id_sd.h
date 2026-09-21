@@ -10,7 +10,14 @@
 
 #pragma pack(1)
 
+#include "sd_mixer.h"
+
 #define alOut(n,b) YM3812Write(oplChip, n, b)
+
+//
+// Channels 0 and 1 are reserved for the player's and the boss's weapons.
+//
+#define SD_RESERVEDCHANNELS 2
 
 #define TickBase        70      // 70Hz per tick - used as a base for timer 0
 
@@ -141,6 +148,7 @@ extern  int     SD_GetChannelForDigi(int which);
 extern  void    SD_PositionSound(int leftvol,int rightvol);
 extern  boolean SD_PlaySound (int sound);
 extern  void    SD_SetPosition(int channel, int leftvol,int rightvol);
+extern  void    SD_StopAllVoices(void);
 extern  void    SD_StopSound(void),
                 SD_WaitSoundDone(void);
 
