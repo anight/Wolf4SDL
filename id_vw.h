@@ -116,6 +116,7 @@ void VW_MemToScreen (byte *source, int width, int height, int x, int y);
 
 void VW_MeasurePropString (const char *string, word *width, word *height);
 
-boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolean abortable);
+boolean VW_FizzleFade (int x1, int y1, int width, int height, int color,
+                       int frames, boolean abortable);
 
 #endif

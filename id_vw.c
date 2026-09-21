@@ -97,18 +97,16 @@ CASSERT(lengthof(gamepal) == 256)
 #ifdef PICOWOLF
 
 /*
-= The two framebuffers, static because PicoSDL allocates no pixels and its
-= arena is 16 KB against the 62,500 one of these needs.
+= The framebuffer.  One of them: the game draws into the same bytes the panel
+= is sent, because at 8bpp indexed there is nothing to convert between them -
+= PicoSDL's PIO expands the indices through the CLUT on the way out.
 =
-= There are two of them for the same reason the desktop has two: FizzleFade
-= dissolves the new frame into the displayed one, so it wants a source and a
-= destination.  That costs 125 KB of a 520 KB SRAM and a 64,000-byte copy per
-= frame, and collapsing it is its own job - see TODO.md.
+= Static because PicoSDL allocates no pixels and its arena is 16 KB against
+= the 62,500 this needs.
 */
 #define PICOWOLF_CANVAS (320 * 200)
 
 static Uint8 PanelCanvas[PICOWOLF_CANVAS];
-static Uint8 DrawCanvas[PICOWOLF_CANVAS];
 
 void VW_Startup (void)
 {
@@ -189,12 +187,14 @@ void VW_ClearVideo (void)
 {
     //
     // screen.surface is the window's own framebuffer.  SDL owns it and frees
-    // it with the window, so it is dropped here rather than freed.
+    // it with the window, so it is dropped here rather than freed - and under
+    // PICOWOLF screen.buffer is the same surface, so it is dropped too.
     //
-    screen.surface = NULL;
+    if (screen.buffer != screen.surface)
+        SDL_FreeSurface (screen.buffer);
 
-    SDL_FreeSurface (screen.buffer);
     screen.buffer = NULL;
+    screen.surface = NULL;
 
     SafeFree (ylookup);
 }
@@ -249,9 +249,12 @@ void VW_SetupVideo (void)
     // create 8 bit screen buffer for drawing
     //
 #ifdef PICOWOLF
-    // Over the static canvas: PicoSDL wraps client pixels without copying,
-    // and has nowhere to allocate 62,500 bytes from.
-    screen.buffer = SDL_CreateRGBSurfaceFrom(DrawCanvas,w,h,8,w,0,0,0,0);
+    //
+    // The same surface.  PicoSDL's window surface already wraps PanelCanvas
+    // at 8bpp indexed, which is the format the game draws in, so there is no
+    // second buffer and no conversion - VW_UpdateScreen() only presents.
+    //
+    screen.buffer = screen.surface;
 #else
     screen.buffer = SDL_CreateRGBSurface(0,w,h,8,0,0,0,0);
 #endif
@@ -1048,8 +1051,16 @@ void VW_SegToScreen (byte *source, int srcwidth, int srcx, int srcy,
 
 void VW_UpdateScreen (void)
 {
-	SDL_BlitSurface (screen.buffer,NULL,screen.surface,NULL);
-	SDL_UpdateWindowSurface (screen.window);
+    //
+    // When the two are one surface there is nothing to copy: the game has
+    // been drawing into the bytes the panel is about to be sent.  On a
+    // desktop they differ in format and the blit is the conversion the
+    // panel's CLUT does for free.
+    //
+    if (screen.buffer != screen.surface)
+        SDL_BlitSurface (screen.buffer,NULL,screen.surface,NULL);
+
+    SDL_UpdateWindowSurface (screen.window);
 }
 
 
@@ -1057,6 +1068,16 @@ void VW_UpdateScreen (void)
 ===================
 =
 = VW_FizzleFade
+=
+= Dissolve `color` into the framebuffer over a rectangle, a scattering of
+= pixels at a time.
+=
+= It used to copy from screen.buffer into screen.surface, which meant the two
+= had to be different pictures and so different memory.  Both callers filled
+= the rectangle with a flat colour immediately beforehand and then dissolved
+= that - so the source was never a picture, and writing the colour straight in
+= is the same effect with nothing to copy from.  That is what lets the board
+= hold one framebuffer instead of two.
 =
 = returns true if aborted
 =
@@ -1114,10 +1135,12 @@ void VW_InitRndMask (void)
     rndmask = rndmasks[rndbits - 17];
 }
 
-boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolean abortable)
+boolean VW_FizzleFade (int x1, int y1, int width, int height, int color,
+                       int frames, boolean abortable)
 {
-    unsigned x, y, p, frame, pixperframe;
+    unsigned x,y,p,frame,pixperframe;
     int32_t  rndval;
+    byte    *dest;
 
     x1 *= screen.scale;
     y1 *= screen.scale;
@@ -1130,24 +1153,24 @@ boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolea
     IN_StartAck ();
 
     frame = GetTimeCount();
-    byte *srcptr = VW_LockSurface(screen.buffer);
-    if(srcptr == NULL) return false;
+
+    dest = VW_LockSurface(screen.buffer);
+
+    if (!dest)
+        Quit ("VW_FizzleFade: unable to lock the framebuffer: %s\n",SDL_GetError());
 
     while (1)
     {
         IN_ProcessEvents();
 
-        if(abortable && IN_CheckAck ())
+        if (abortable && IN_CheckAck ())
         {
-            VW_UnlockSurface(screen.buffer);
+            VW_Bar (x1 / screen.scale,y1 / screen.scale,
+                    width / screen.scale,height / screen.scale,color);
+            VW_UnlockSurface (screen.buffer);
             VW_UpdateScreen ();
             return true;
         }
-
-        byte *destptr = VW_LockSurface(screen.surface);
-
-        if (!destptr)
-            Quit ("Unable to lock dest surface: %s\n",SDL_GetError());
 
         for (p = 0; p < pixperframe; p++)
         {
@@ -1162,27 +1185,10 @@ boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolea
             //
             rndval = (rndval >> 1) ^ (rndval & 1 ? 0 : rndmask);
 
-            if (x >= width || y >= height)
+            if (x >= (unsigned)width || y >= (unsigned)height)
                 p--;                         // not into the view area; get a new pair
             else
-            {
-                //
-                // copy one pixel
-                //
-                if (screen.surface->format->palette)
-                {
-                    // The display is indexed too, so the index travels as-is.
-                    *(destptr + (y1 + y) * screen.surface->pitch + x1 + x)
-                        = *(srcptr + (y1 + y) * screen.buffer->pitch + x1 + x);
-                }
-                else
-                {
-                    byte col = *(srcptr + (y1 + y) * screen.buffer->pitch + x1 + x);
-                    uint32_t fullcol = SDL_MapRGBA(screen.surface->format, curpal[col].r, curpal[col].g, curpal[col].b,SDL_ALPHA_OPAQUE);
-                    memcpy(destptr + (y1 + y) * screen.surface->pitch + (x1 + x) * screen.surface->format->BytesPerPixel,
-                        &fullcol, screen.surface->format->BytesPerPixel);
-                }
-            }
+                *(dest + (y1 + y) * screen.buffer->pitch + x1 + x) = (byte)color;
 
             if (rndval == 1)
             {
@@ -1190,16 +1196,13 @@ boolean VW_FizzleFade (int x1, int y1, int width, int height, int frames, boolea
                 // entire sequence has been completed
                 //
                 VW_UnlockSurface (screen.buffer);
-                VW_UnlockSurface (screen.surface);
                 VW_UpdateScreen ();
 
                 return false;
             }
         }
 
-        VW_UnlockSurface (screen.surface);
-
-        SDL_UpdateWindowSurface (screen.window);
+        VW_UpdateScreen ();
 
         frame++;
         Delay(frame - GetTimeCount());        // don't go too fast

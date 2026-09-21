@@ -1580,9 +1580,18 @@ void ThreeDRefresh (void)
 //
 // show screen and time last cycle
 //
+    //
+    // SC_FIZZLEIN used to dissolve the frame just drawn over the one before
+    // it, which needed two pictures in two buffers.  It is set on entering a
+    // level, and a level is entered with the palette faded out - so what it
+    // dissolved was black into black, invisibly, for twenty frames.  Measured:
+    // twenty-three consecutive presents of an entirely black screen.
+    //
+    // Dropping it costs that delay and nothing seen, and it is what makes one
+    // framebuffer enough.
+    //
     if (screen.flags & SC_FIZZLEIN)
     {
-        VW_FizzleFade (0,0,screen.basewidth,screen.baseheight,20,false);
         screen.flags &= ~SC_FIZZLEIN;
 
         lasttimecount = GetTimeCount();          // don't make a big tic count

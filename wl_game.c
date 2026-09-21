@@ -1409,8 +1409,7 @@ void Died (void)
     //
     FinishPaletteShifts ();
 
-    VW_Bar (baseviewscreenx,baseviewscreeny,baseviewwidth,baseviewheight,4);
-    VW_FizzleFade (baseviewscreenx,baseviewscreeny,baseviewwidth,baseviewheight,70,false);
+    VW_FizzleFade (baseviewscreenx,baseviewscreeny,baseviewwidth,baseviewheight,4,70,false);
 
     IN_UserInput(100);
     SD_WaitSoundDone ();
