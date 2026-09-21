@@ -3870,7 +3870,12 @@ CheckForEpisodes (void)
     struct stat statbuf;
 
     // On Linux like systems, the configdir defaults to $HOME/.wolf4sdl
-#if !defined(_WIN32) && !defined(_arch_dreamcast)
+    //
+    // Not on the board: there is no environment to read a home directory out
+    // of and no filesystem to put one in.  configdir stays empty, the config
+    // and savegame opens below fail, and ReadConfig() takes its no-config path
+    // - which is the same thing that happens on a first run anywhere.
+#if !defined(PICOWOLF) && !defined(_WIN32) && !defined(_arch_dreamcast)
     if(configdir[0] == 0)
     {
         // Set config location to home directory for multi-user support
