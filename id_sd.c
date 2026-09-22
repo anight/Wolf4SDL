@@ -397,13 +397,26 @@ void SD_SetPosition(int channel, int leftpos, int rightpos)
     {
         case sds_SoundBlaster:
             //
-            // leftpos/rightpos are 0..15 with 0 the loudest, which is the
-            // conversion Mix_SetPanning() was handed.
+            // leftpos/rightpos are 0..15 with 0 the loudest.  The expression is
+            // the one this code has always used, but it only stayed in range
+            // because Mix_SetPanning() took Uint8: 255 - 15*28 is -165, and
+            // truncating that to a byte gave 91.  So a sound hard over to one
+            // side came out of the far speaker at a third of full volume,
+            // louder than the same sound at position 9.
+            //
+            // Here the gains are ints and go straight into a multiply, so the
+            // negative survives: the far channel is phase-inverted and grows
+            // louder as the sound gets further away.  Clamping is what both
+            // versions were reaching for - the far side of a hard-panned sound
+            // is silent, which is what panning means.
             //
             if(channel >= 0 && channel < SD_CHANNELS)
             {
-                Voices[channel].left  = 255 - (leftpos * 28);
-                Voices[channel].right = 255 - (rightpos * 28);
+                int left  = 255 - (leftpos  * 28);
+                int right = 255 - (rightpos * 28);
+
+                Voices[channel].left  = left  < 0 ? 0 : left;
+                Voices[channel].right = right < 0 ? 0 : right;
             }
             break;
 
